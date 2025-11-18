@@ -44,7 +44,7 @@ export const DEFAULT_ERROR_MESSAGES: Partial<Record<string, string>> = {
   INVALID_CREDENTIALS: 'Email ou mot de passe incorrect.',
   EMAIL_TAKEN: 'Cet email est déjà utilisé.',
   INVALID_INPUT: 'Certaines informations sont invalides.',
-  NOT_FOUND: 'Ressource introuvable.',
+  // NOT_FOUND: 'Ressource introuvable.',
   SERVER_ERROR: 'Un problème est survenu. Réessaie plus tard.'
 }
 

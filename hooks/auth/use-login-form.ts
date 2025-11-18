@@ -10,6 +10,7 @@ import { login } from '@/lib/auth-client'
 import { isApiError, getUserFriendlyMessage, getFieldError } from '@/lib/errors'
 import { useAuth } from '@/components/auth-provider'
 import { loginSchema, type LoginFormValues } from '@/schemas/auth.schemas'
+import { toast } from 'sonner'
 
 export function useLoginForm() {
   const { setAuth } = useAuth()
@@ -35,12 +36,13 @@ export function useLoginForm() {
       router.push('/dashboard')
     },
     onError: (error) => {
-      // reset des erreurs de champ côté form
       form.clearErrors()
       setGeneralError(null)
 
+      const friendly = getUserFriendlyMessage(error)
+      toast.error('Erreur de connexion', { description: friendly })
+
       if (isApiError(error)) {
-        // Erreurs de validation backend
         if (error.code === 'INVALID_INPUT' && error.details) {
           const emailError = getFieldError(error.details, 'email')
           const passwordError = getFieldError(error.details, 'password')
@@ -52,16 +54,14 @@ export function useLoginForm() {
             form.setError('password', { type: 'server', message: passwordError })
           }
 
-          // on met aussi un message global si tu veux
           if (!emailError && !passwordError) {
-            setGeneralError(getUserFriendlyMessage(error))
+            setGeneralError(friendly)
           }
         } else {
-          // Erreurs métier : INVALID_CREDENTIALS, UNAUTHORIZED, etc.
-          setGeneralError(getUserFriendlyMessage(error))
+          setGeneralError(friendly)
         }
       } else {
-        setGeneralError(getUserFriendlyMessage(error))
+        setGeneralError(friendly)
       }
     }
   })

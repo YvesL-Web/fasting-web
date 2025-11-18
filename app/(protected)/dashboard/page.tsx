@@ -2,95 +2,38 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { Loader2 } from 'lucide-react'
+
 import { useAuth } from '@/components/auth-provider'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { apiFetch } from '@/lib/api'
+
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-
-type Fast = {
-  id: string
-  type: string
-  startAt: string
-  endAt: string | null
-  notes: string | null
-  createdAt: string
-  updatedAt: string
-}
-
-type Stats = {
-  totalFasts: number
-  totalHours: number
-  averageHours: number
-  longestFastHours: number
-  currentStreakDays: number
-}
+import { useFasts } from '@/hooks/fasts/use-fasts'
+import { useFastStats } from '@/hooks/fasts/use-fast-stats'
+import { useStartFast, useStopFast } from '@/hooks/fasts/use-fast-mutations'
 
 export default function DashboardPage() {
   const { user, accessToken, clearAuth } = useAuth()
   const router = useRouter()
-  const queryClient = useQueryClient()
 
-  // Redirect si pas connecté
+  // Redirect simple si pas de token (fallback rapide)
   useEffect(() => {
     if (!accessToken) {
       router.push('/login')
     }
   }, [accessToken, router])
 
-  const { data: fastsData } = useQuery({
-    queryKey: ['fasts'],
-    queryFn: () =>
-      apiFetch<{ fasts: Fast[] }>('/fasts', {
-        accessToken
-      }),
-    enabled: !!accessToken
-  })
+  const { fasts, isLoading: isLoadingFasts, isError: isErrorFasts } = useFasts()
+  const { stats, isLoading: isLoadingStats, isError: isErrorStats } = useFastStats()
+  const { startFast, isStarting } = useStartFast()
+  const { stopFast, isStopping } = useStopFast()
 
-  const { data: statsData } = useQuery({
-    queryKey: ['fasts-stats'],
-    queryFn: () =>
-      apiFetch<{ stats: Stats }>('/fasts/stats', {
-        accessToken
-      }),
-    enabled: !!accessToken
-  })
-
-  const startMutation = useMutation({
-    mutationFn: () =>
-      apiFetch<{ fast: Fast }>('/fasts/start', {
-        method: 'POST',
-        body: { type: '16_8', notes: 'Started from dashboard' },
-        accessToken
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['fasts'] })
-      queryClient.invalidateQueries({ queryKey: ['fasts-stats'] })
-    }
-  })
-
-  const stopMutation = useMutation({
-    mutationFn: () =>
-      apiFetch<{ fast: Fast }>('/fasts/stop', {
-        method: 'POST',
-        body: {},
-        accessToken
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['fasts'] })
-      queryClient.invalidateQueries({ queryKey: ['fasts-stats'] })
-    }
-  })
-
-  const isLoading = startMutation.isPending || stopMutation.isPending
+  const isMutating = isStarting || isStopping
 
   const handleLogout = () => {
     clearAuth()
     router.push('/login')
   }
-
-  const fasts = fastsData?.fasts ?? []
-  const stats = statsData?.stats
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -115,11 +58,13 @@ export default function DashboardPage() {
               <CardTitle>Actions</CardTitle>
             </CardHeader>
             <CardContent className="flex gap-2">
-              <Button onClick={() => startMutation.mutate()} disabled={isLoading}>
-                Start 16:8
+              <Button onClick={startFast} disabled={isMutating}>
+                {isStarting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isStarting ? 'Starting...' : 'Start 16:8'}
               </Button>
-              <Button variant="outline" onClick={() => stopMutation.mutate()} disabled={isLoading}>
-                Stop
+              <Button variant="outline" onClick={stopFast} disabled={isMutating}>
+                {isStopping && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isStopping ? 'Stopping...' : 'Stop'}
               </Button>
             </CardContent>
           </Card>
@@ -129,7 +74,11 @@ export default function DashboardPage() {
               <CardTitle>Stats</CardTitle>
             </CardHeader>
             <CardContent>
-              {stats ? (
+              {isLoadingStats ? (
+                <p className="text-sm text-slate-500">Chargement des stats...</p>
+              ) : isErrorStats ? (
+                <p className="text-sm text-red-500">Impossible de charger les stats.</p>
+              ) : stats ? (
                 <ul className="space-y-1 text-sm">
                   <li>Total fasts: {stats.totalFasts}</li>
                   <li>Total hours: {stats.totalHours.toFixed(1)}</li>
@@ -150,7 +99,11 @@ export default function DashboardPage() {
               <CardTitle>Recent fasts</CardTitle>
             </CardHeader>
             <CardContent>
-              {fasts.length === 0 ? (
+              {isLoadingFasts ? (
+                <p className="text-sm text-slate-500">Chargement des derniers jeûnes...</p>
+              ) : isErrorFasts ? (
+                <p className="text-sm text-red-500">Impossible de charger les jeûnes.</p>
+              ) : fasts.length === 0 ? (
                 <p className="text-sm text-slate-500">No fasts yet. Start one above.</p>
               ) : (
                 <ul className="space-y-2 text-sm">
@@ -162,7 +115,7 @@ export default function DashboardPage() {
                       <div>
                         <p className="font-medium">{f.type}</p>
                         <p className="text-xs text-slate-500">
-                          Start:{' '}
+                          Start{' '}
                           {new Date(f.startAt).toLocaleString('fr-FR', {
                             dateStyle: 'short',
                             timeStyle: 'short'
@@ -170,7 +123,7 @@ export default function DashboardPage() {
                           {f.endAt && (
                             <>
                               {' '}
-                              – End:{' '}
+                              – End{' '}
                               {new Date(f.endAt).toLocaleString('fr-FR', {
                                 dateStyle: 'short',
                                 timeStyle: 'short'

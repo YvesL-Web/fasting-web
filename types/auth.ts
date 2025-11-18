@@ -23,5 +23,9 @@ export type AuthContextValue = {
   clearAuth: () => void
 }
 
+export type RefreshResponse = {
+  accessToken: string
+  refreshToken: string
+}
 export type LoginResponse = AuthState
 export type LoginSuccessPayload = AuthState

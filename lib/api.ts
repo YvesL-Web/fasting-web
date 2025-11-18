@@ -1,4 +1,3 @@
-// lib/api.ts
 import { apiErrorResponseSchema, ApiError } from './errors'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000'
@@ -9,7 +8,7 @@ export type ApiOptions = {
   method?: HttpMethod
   body?: unknown
   accessToken?: string | null
-  // si tu veux : signal?: AbortSignal; etc.
+  // signal?: AbortSignal; etc.
 }
 
 export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promise<T> {
@@ -57,10 +56,13 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
 
     if (result.success) {
       const { error, message, details } = result.data
+
+      const finalMessage =
+        typeof details === 'string' ? details : message || `HTTP error ${res.status}`
       throw new ApiError({
         status: res.status,
         code: error,
-        message: message,
+        message: finalMessage,
         details
       })
     }

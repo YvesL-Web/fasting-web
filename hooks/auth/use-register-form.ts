@@ -11,6 +11,7 @@ import { useAuth } from '@/components/auth-provider'
 import { register as registerRequest } from '@/lib/auth-client'
 import { isApiError, getUserFriendlyMessage, getFieldError } from '@/lib/errors'
 import { registerSchema, type RegisterFormValues } from '@/schemas/auth.schemas'
+import { toast } from 'sonner'
 
 export function useRegisterForm() {
   const { setAuth } = useAuth()
@@ -37,11 +38,18 @@ export function useRegisterForm() {
         refreshToken: data.refreshToken || null
       })
 
+      toast.success('Compte créé 🎉', {
+        description: 'Bienvenue ! Tu es maintenant connecté.'
+      })
+
       router.push('/dashboard')
     },
     onError: (error) => {
       form.clearErrors()
       setGeneralError(null)
+
+      const friendly = getUserFriendlyMessage(error)
+      toast.error('Erreur lors de l’inscription', { description: friendly })
 
       if (isApiError(error)) {
         if (error.code === 'INVALID_INPUT' && error.details) {
@@ -64,14 +72,14 @@ export function useRegisterForm() {
           }
 
           if (!displayNameError && !emailError && !passwordError && !localeError) {
-            setGeneralError(getUserFriendlyMessage(error))
+            setGeneralError(friendly)
           }
         } else {
           // EMAIL_TAKEN, SERVER_ERROR, etc.
-          setGeneralError(getUserFriendlyMessage(error))
+          setGeneralError(friendly)
         }
       } else {
-        setGeneralError(getUserFriendlyMessage(error))
+        setGeneralError(friendly)
       }
     }
   })
