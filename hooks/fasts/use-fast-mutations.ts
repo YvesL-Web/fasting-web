@@ -1,44 +1,24 @@
 'use client'
 
-import { useCallback } from 'react'
-import { useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
-import { useAuth } from '@/components/auth-provider'
-
 import { isApiError, getUserFriendlyMessage } from '@/lib/errors'
 import { Fast } from '@/types/fasts'
-import { startFastRequest, stopFastRequest } from '../../lib/fasts-client'
-
-function useHandleUnauthorized() {
-  const { clearAuth } = useAuth()
-  const router = useRouter()
-
-  return useCallback(
-    (error: unknown): boolean => {
-      if (isApiError(error) && (error.code === 'UNAUTHORIZED' || error.status === 401)) {
-        clearAuth()
-        toast.error('Session expirée', {
-          description: 'Merci de te reconnecter.'
-        })
-        router.push('/login')
-        return true
-      }
-      return false
-    },
-    [clearAuth, router]
-  )
-}
+import { useAuthedApi } from '../auth/use-authed-api'
 
 export function useStartFast() {
-  const { accessToken } = useAuth()
+  const { authedFetch } = useAuthedApi()
   const queryClient = useQueryClient()
-  const handleUnauthorized = useHandleUnauthorized()
 
   const mutation = useMutation<{ fast: Fast }, unknown, void>({
-    mutationFn: () => startFastRequest(accessToken),
+    mutationFn: () =>
+      authedFetch<{ fast: Fast }>('/fasts/start', {
+        method: 'POST',
+        body: { type: '16_8', notes: 'Started from dashboard' }
+      }),
     onSuccess: () => {
+      // on invalide les caches liés aux jeûnes
       queryClient.invalidateQueries({ queryKey: ['fasts'] })
       queryClient.invalidateQueries({ queryKey: ['fasts-stats'] })
 
@@ -47,7 +27,11 @@ export function useStartFast() {
       })
     },
     onError: (error) => {
-      if (handleUnauthorized(error)) return
+      // si UNAUTHORIZED, useAuthedApi a déjà géré (refresh ou logout)
+      if (isApiError(error) && error.code === 'UNAUTHORIZED') {
+        return
+      }
+
       toast.error('Erreur', {
         description: getUserFriendlyMessage(error)
       })
@@ -61,12 +45,15 @@ export function useStartFast() {
 }
 
 export function useStopFast() {
-  const { accessToken } = useAuth()
+  const { authedFetch } = useAuthedApi()
   const queryClient = useQueryClient()
-  const handleUnauthorized = useHandleUnauthorized()
 
   const mutation = useMutation<{ fast: Fast }, unknown, void>({
-    mutationFn: () => stopFastRequest(accessToken),
+    mutationFn: () =>
+      authedFetch<{ fast: Fast }>('/fasts/stop', {
+        method: 'POST',
+        body: {}
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fasts'] })
       queryClient.invalidateQueries({ queryKey: ['fasts-stats'] })
@@ -76,7 +63,10 @@ export function useStopFast() {
       })
     },
     onError: (error) => {
-      if (handleUnauthorized(error)) return
+      if (isApiError(error) && error.code === 'UNAUTHORIZED') {
+        return
+      }
+
       toast.error('Erreur', {
         description: getUserFriendlyMessage(error)
       })
