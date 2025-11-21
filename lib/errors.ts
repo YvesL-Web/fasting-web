@@ -21,8 +21,8 @@ export class ApiError extends Error {
   code: string
   details?: unknown
 
-  constructor(args: { status: number; code: string; message?: string; details?: unknown }) {
-    super(args.message ?? args.code)
+  constructor(args: { status: number; code: string; message: string; details?: unknown }) {
+    super(args.message)
     this.name = 'ApiError'
     this.status = args.status
     this.code = args.code
@@ -44,7 +44,7 @@ export const DEFAULT_ERROR_MESSAGES: Partial<Record<string, string>> = {
   INVALID_CREDENTIALS: 'Email ou mot de passe incorrect.',
   EMAIL_TAKEN: 'Cet email est déjà utilisé.',
   INVALID_INPUT: 'Certaines informations sont invalides.',
-  // NOT_FOUND: 'Ressource introuvable.',
+  NOT_FOUND: 'Ressource introuvable.',
   SERVER_ERROR: 'Un problème est survenu. Réessaie plus tard.'
 }
 
@@ -53,14 +53,12 @@ export const DEFAULT_ERROR_MESSAGES: Partial<Record<string, string>> = {
  * dans un toast / message d'erreur générique.
  */
 export function getUserFriendlyMessage(err: unknown): string {
-  if (isApiError(err)) {
-    return DEFAULT_ERROR_MESSAGES[err.code] ?? err.message ?? 'Une erreur est survenue. Réessaie.'
-  }
-
   if (err instanceof Error) {
     return err.message || 'Une erreur est survenue. Réessaie.'
   }
-
+  if (isApiError(err)) {
+    return DEFAULT_ERROR_MESSAGES[err.code] ?? err.message ?? 'Une erreur est survenue. Réessaie.'
+  }
   return 'Une erreur est survenue. Réessaie.'
 }
 

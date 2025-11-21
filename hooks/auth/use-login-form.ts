@@ -13,7 +13,7 @@ import { loginSchema, type LoginFormValues } from '@/schemas/auth.schemas'
 import { toast } from 'sonner'
 
 export function useLoginForm() {
-  const { setAuth } = useAuth()
+  const { setUser, refreshUser } = useAuth()
   const router = useRouter()
   const [generalError, setGeneralError] = useState<string | null>(null)
 
@@ -28,10 +28,9 @@ export function useLoginForm() {
   const mutation = useMutation({
     mutationFn: login,
     onSuccess: (data) => {
-      setAuth({
-        user: data.user,
-        accessToken: data.accessToken,
-        refreshToken: data.refreshToken || null
+      setUser(data.user)
+      toast.success('Bienvenue 👋', {
+        description: `Content de te revoir, ${data.user?.displayName}`
       })
       router.push('/dashboard')
     },
@@ -46,7 +45,6 @@ export function useLoginForm() {
         if (error.code === 'INVALID_INPUT' && error.details) {
           const emailError = getFieldError(error.details, 'email')
           const passwordError = getFieldError(error.details, 'password')
-
           if (emailError) {
             form.setError('email', { type: 'server', message: emailError })
           }

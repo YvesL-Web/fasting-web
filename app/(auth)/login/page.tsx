@@ -9,11 +9,12 @@ import { useLoginForm } from '@/hooks/auth/use-login-form'
 
 export default function LoginPage() {
   const { form, onSubmit, isSubmitting, generalError } = useLoginForm()
-
   const {
     register,
     formState: { errors }
   } = form
+
+  console.log('generalError', generalError)
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100">

@@ -1,6 +1,8 @@
 'use client'
 
-import { AuthContextValue, AuthState } from '@/types/auth'
+import { apiFetch } from '@/lib/api'
+import { ApiError } from '@/lib/errors'
+import { AuthContextValue, User } from '@/types/auth'
 import {
   createContext,
   useContext,
@@ -13,71 +15,55 @@ import {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
-const STORAGE_KEY = 'fasting_auth'
-
-const INITIAL_AUTH: AuthState = {
-  user: null,
-  accessToken: null,
-  refreshToken: null
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  //   const [state, setState] = useState<AuthState>({
-  //     user: null,
-  //     accessToken: null,
-  //     refreshToken: null
-  //   })
+  const [user, setUserState] = useState<User | null>(null)
+  const [isLoading, setIsLoading] = useState<boolean>(true)
 
-  const [state, setState] = useState<AuthState>(() => {
-    if (typeof window === 'undefined') return INITIAL_AUTH
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (!raw) return INITIAL_AUTH
+  const setUser = useCallback((u: User | null) => {
+    setUserState(u)
+  }, [])
+
+  const refreshUser = useCallback(async () => {
     try {
-      return JSON.parse(raw) as AuthState
-    } catch {
-      return INITIAL_AUTH
+      const res = await apiFetch<{ user: User }>('auth/me')
+      setUserState(res.user)
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        setUserState(null)
+      } else {
+        setUserState(null)
+      }
+    } finally {
+      setIsLoading(false)
     }
-  })
-
-  //   useEffect(() => {
-  //     if (typeof window === 'undefined') return
-  //     const raw = window.localStorage.getItem(STORAGE_KEY)
-  //     if (!raw) return
-  //     try {
-  //       const parsed = JSON.parse(raw) as AuthState
-  //       setState(parsed)
-  //     } catch {
-  //       // ignore
-  //     }
-  //   }, [])
+  }, [])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-  }, [state])
+    void refreshUser()
+  }, [refreshUser])
 
-  //   const setAuth = (newState: AuthState) => setState(newState)
-  //   const clearAuth = () =>
-  //     setState({
-  //       user: null,
-  //       accessToken: null,
-  //       refreshToken: null
-  //     })
+  const logout = useCallback(async () => {
+    try {
+      await apiFetch<void>('/auth/logout', { method: 'POST' })
+    } catch (error) {
+      // ignore erreurs logout
+    } finally {
+      setUserState(null)
+    }
+  }, [])
 
-  const setAuth = useCallback((newState: AuthState) => setState(newState), [])
-  const clearAuth = useCallback(() => setState(INITIAL_AUTH), [])
-  const contextValue = useMemo(
+  const value = useMemo<AuthContextValue>(
     () => ({
-      user: state.user,
-      accessToken: state.accessToken,
-      refreshToken: state.refreshToken,
-      setAuth,
-      clearAuth
+      user,
+      isLoading,
+      setUser,
+      refreshUser,
+      logout
     }),
-    [state, setAuth, clearAuth]
+    [user, isLoading, setUser, refreshUser, logout]
   )
 
-  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {

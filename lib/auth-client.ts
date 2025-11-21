@@ -1,6 +1,6 @@
 import { apiFetch } from './api'
 import type { LoginFormValues, RegisterFormValues } from '@/schemas/auth.schemas'
-import type { LoginResponse, RefreshResponse, User } from '@/types/auth'
+import type { LoginResponse, User } from '@/types/auth'
 
 export function login(input: LoginFormValues) {
   return apiFetch<LoginResponse>('/auth/login', {
@@ -16,13 +16,6 @@ export function register(input: RegisterFormValues) {
   })
 }
 
-export function refreshTokens(refreshToken: string) {
-  return apiFetch<RefreshResponse>('/auth/refresh', {
-    method: 'POST',
-    body: { refreshToken }
-  })
-}
-
 export function getCurrentUser(accessToken: string | null) {
   return apiFetch<{ user: User }>('/auth/me', {
     accessToken
@@ -31,7 +24,7 @@ export function getCurrentUser(accessToken: string | null) {
 
 // Mot de passe oublié
 export function requestPasswordReset(input: { email: string }) {
-  return apiFetch<{ ok: true; resetToken?: string }>('/auth/request-password-reset', {
+  return apiFetch<{ ok: true }>('/auth/request-password-reset', {
     method: 'POST',
     body: input
   })

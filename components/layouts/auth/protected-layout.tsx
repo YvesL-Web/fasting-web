@@ -4,45 +4,34 @@ import { ReactNode, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 import { useAuth } from '@/components/auth-provider'
-
 import { Loader2 } from 'lucide-react'
-import { useCurrentUser } from '@/hooks/auth/use-current-user'
 
 type Props = {
   children: ReactNode
 }
 
 export function ProtectedLayout({ children }: Props) {
-  const { accessToken } = useAuth()
+  const { user, isLoading } = useAuth()
   const router = useRouter()
-  const { data, isLoading } = useCurrentUser()
 
-  // fallback rapide si pas de token
+  // fallback rapide si pas de user
   useEffect(() => {
-    if (!accessToken) {
+    if (!isLoading && !user) {
       router.replace('/login')
     }
-  }, [accessToken, router])
+  }, [isLoading, user, router])
 
-  if (!accessToken) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-100">
-        <p className="text-sm text-slate-600">Redirection vers la page de connexion...</p>
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin" />
       </div>
     )
   }
 
-  if (isLoading && !data) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-100">
-        <div className="flex items-center gap-2 text-slate-600">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <span>Chargement de ton espace...</span>
-        </div>
-      </div>
-    )
+  if (!user) {
+    return null
   }
 
-  // user OK → on rend l'app
   return <>{children}</>
 }

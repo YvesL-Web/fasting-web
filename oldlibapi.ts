@@ -8,11 +8,11 @@ export type ApiOptions = {
   method?: HttpMethod
   body?: unknown
   accessToken?: string | null
-  signal?: AbortSignal // etc.
+  // signal?: AbortSignal; etc.
 }
 
 export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promise<T> {
-  const { method = 'GET', body, signal } = options
+  const { method = 'GET', body, accessToken } = options
 
   const headers: HeadersInit = {}
 
@@ -21,12 +21,15 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
     headers['Content-Type'] = 'application/json'
   }
 
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`
+  }
+
   const res = await fetch(`${API_BASE_URL}${path}`, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
-    credentials: 'include', // if you use cookies (httpOnly)
-    signal
+    credentials: 'include' // if you use cookies (httpOnly)
   })
 
   // Gestion des erreurs HTTP

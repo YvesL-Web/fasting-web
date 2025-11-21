@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
-import { useRequestPasswordResetForm } from '@/hooks/auth/use-request-password-reset-form'
+import { useRequestPasswordResetForm } from '@/hooks/auth/use-request-password-reset'
 
 export default function ForgotPasswordPage() {
   const { form, onSubmit, isSubmitting, devToken } = useRequestPasswordResetForm()

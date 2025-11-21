@@ -24,6 +24,8 @@ export type RequestPasswordResetFormValues = z.infer<typeof requestPasswordReset
 
 export const resetPasswordFormSchema = z
   .object({
+    email: z.email(),
+    code: z.string().length(6).regex(/^\d+$/),
     newPassword: z.string().min(8).max(100),
     confirmNewPassword: z.string().min(8).max(100)
   })
@@ -33,3 +35,10 @@ export const resetPasswordFormSchema = z
   })
 
 export type ResetPasswordFormValues = z.infer<typeof resetPasswordFormSchema>
+
+export const verifyEmailSchema = z.object({
+  email: z.email(),
+  code: z.string().length(6).regex(/^\d+$/)
+})
+
+export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>

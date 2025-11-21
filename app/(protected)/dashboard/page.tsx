@@ -1,6 +1,5 @@
 'use client'
 
-import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 
@@ -13,25 +12,18 @@ import { useFastStats } from '@/hooks/fasts/use-fast-stats'
 import { useStartFast, useStopFast } from '@/hooks/fasts/use-fast-mutations'
 
 export default function DashboardPage() {
-  const { user, accessToken, clearAuth } = useAuth()
+  const { user, logout } = useAuth()
   const router = useRouter()
 
-  // Redirect simple si pas de token (fallback rapide)
-  useEffect(() => {
-    if (!accessToken) {
-      router.push('/login')
-    }
-  }, [accessToken, router])
+  // const { fasts, isLoading: isLoadingFasts, isError: isErrorFasts } = useFasts()
+  // const { stats, isLoading: isLoadingStats, isError: isErrorStats } = useFastStats()
+  // const { startFast, isStarting } = useStartFast()
+  // const { stopFast, isStopping } = useStopFast()
 
-  const { fasts, isLoading: isLoadingFasts, isError: isErrorFasts } = useFasts()
-  const { stats, isLoading: isLoadingStats, isError: isErrorStats } = useFastStats()
-  const { startFast, isStarting } = useStartFast()
-  const { stopFast, isStopping } = useStopFast()
-
-  const isMutating = isStarting || isStopping
+  // const isMutating = isStarting || isStopping
 
   const handleLogout = () => {
-    clearAuth()
+    logout()
     router.push('/login')
   }
 
@@ -51,7 +43,7 @@ export default function DashboardPage() {
         </Button>
       </header>
 
-      <main className="p-6 space-y-6">
+      {/* <main className="p-6 space-y-6">
         <section className="flex gap-4 flex-wrap">
           <Card className="flex-1 min-w-[250px]">
             <CardHeader>
@@ -142,7 +134,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </section>
-      </main>
+      </main> */}
     </div>
   )
 }

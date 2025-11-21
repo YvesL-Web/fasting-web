@@ -11,21 +11,24 @@ export type User = {
 
 export type AuthState = {
   user: User | null
-  accessToken: string | null
-  refreshToken: string | null
 }
 
 export type AuthContextValue = {
   user: User | null
-  accessToken: string | null
-  refreshToken: string | null
-  setAuth: (state: AuthState) => void
-  clearAuth: () => void
+  isLoading: boolean
+  setUser: (user: User | null) => void
+  refreshUser: () => Promise<void>
+  logout: () => Promise<void>
 }
 
-export type RefreshResponse = {
-  accessToken: string
-  refreshToken: string
-}
 export type LoginResponse = AuthState
 export type LoginSuccessPayload = AuthState
+
+export type VerifyEmailInput = {
+  email: string
+  code: string
+}
+
+export type RequestPasswordResetInput = {
+  email: string
+}

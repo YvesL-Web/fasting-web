@@ -14,7 +14,6 @@ export default function RegisterPage() {
     register,
     formState: { errors }
   } = form
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100">
       <Card className="w-full max-w-md">

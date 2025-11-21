@@ -7,14 +7,12 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@tanstack/react-query'
 
-import { useAuth } from '@/components/auth-provider'
 import { register as registerRequest } from '@/lib/auth-client'
 import { isApiError, getUserFriendlyMessage, getFieldError } from '@/lib/errors'
 import { registerSchema, type RegisterFormValues } from '@/schemas/auth.schemas'
 import { toast } from 'sonner'
 
 export function useRegisterForm() {
-  const { setAuth } = useAuth()
   const router = useRouter()
   const [generalError, setGeneralError] = useState<string | null>(null)
 
@@ -30,19 +28,13 @@ export function useRegisterForm() {
 
   const mutation = useMutation({
     mutationFn: registerRequest,
-    onSuccess: (data) => {
-      // on alimente l’AuthProvider avec la réponse backend
-      setAuth({
-        user: data.user,
-        accessToken: data.accessToken,
-        refreshToken: data.refreshToken || null
-      })
-
+    onSuccess: () => {
       toast.success('Compte créé 🎉', {
         description: 'Bienvenue ! Tu es maintenant connecté.'
       })
 
-      router.push('/dashboard')
+      const params = new URLSearchParams({ email: form.getValues('email') })
+      router.push('/verify-email?' + params.toString())
     },
     onError: (error) => {
       form.clearErrors()
@@ -74,8 +66,14 @@ export function useRegisterForm() {
           if (!displayNameError && !emailError && !passwordError && !localeError) {
             setGeneralError(friendly)
           }
+        } else if (error.code === 'FORBIDDEN' && error.message) {
+          const generalFieldError = getFieldError(error.message, 'general')
+          if (generalFieldError) {
+            setGeneralError(generalFieldError)
+          } else {
+            setGeneralError(friendly)
+          }
         } else {
-          // EMAIL_TAKEN, SERVER_ERROR, etc.
           setGeneralError(friendly)
         }
       } else {

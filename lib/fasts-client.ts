@@ -9,11 +9,10 @@ export function getFastStats(accessToken: string | null) {
   return apiFetch<{ stats: Stats }>('/fasts/stats', { accessToken })
 }
 
-export function startFastRequest(accessToken: string | null) {
+export function startFastRequest() {
   return apiFetch<{ fast: Fast }>('/fasts/start', {
     method: 'POST',
-    body: { type: '16_8', notes: 'Started from dashboard' },
-    accessToken
+    body: { type: '16_8', notes: 'Started from dashboard' }
   })
 }
 
