@@ -4,7 +4,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 // import { Loader2, CheckCircle2, XCircle } from 'lucide-react'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { useVerifyEmail } from '@/hooks/auth/use-auth'
+import { useResendVerificationEmail, useVerifyEmail } from '@/hooks/auth/use-auth'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -14,6 +14,7 @@ import { isApiError } from '@/lib/errors'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
+import { Loader2 } from 'lucide-react'
 
 export default function VerifyEmailPage() {
   const searchParams = useSearchParams()
@@ -23,6 +24,7 @@ export default function VerifyEmailPage() {
 
   const [error, setError] = useState<string | null>(null)
   const { mutateAsync, isPending } = useVerifyEmail()
+  const resendMutation = useResendVerificationEmail()
 
   const form = useForm<VerifyEmailInput>({
     resolver: zodResolver(verifyEmailSchema),
@@ -48,6 +50,29 @@ export default function VerifyEmailPage() {
       }
     }
   }
+
+  const handleResend = async () => {
+    setError(null)
+    const email = form.getValues('email')
+    if (!email) {
+      setError('Merci de renseigner un email valide')
+      return
+    }
+    try {
+      await resendMutation.mutateAsync({ email })
+      toast.success('Nouveau code envoyé 📩', {
+        description: 'Si un compte existe et n’est pas vérifié, un nouveau code a été envoyé.'
+      })
+    } catch (error) {
+      if (isApiError(error)) {
+        setError(error.message)
+      } else {
+        setError('Impossible de renvoyer le code.')
+      }
+    }
+  }
+
+  const isResending = resendMutation.isPending
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100">
@@ -85,11 +110,28 @@ export default function VerifyEmailPage() {
             {error && <p className="text-sm text-red-500">{error}</p>}
 
             <Button type="submit" className="w-full" disabled={isPending}>
-              {isPending ? 'Vérification...' : 'Vérifier'}
+              {isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Vérification de ton email...</span>
+                </>
+              ) : (
+                'Vérifier'
+              )}
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={handleResend}
+              disabled={isResending || isPending}
+            >
+              {isResending ? 'Envoi du code...' : 'Renvoyer le code'}
             </Button>
 
             <p className="text-xs text-slate-500 mt-2">
-              Si tu n&apos;as rien reçu, vérifie ton dossier spam ou réessaie de t&apos;inscrire.
+              Le code expire après quelques minutes. Si tu ne le reçois pas, vérifie tes spams.
             </p>
           </form>
         </CardContent>

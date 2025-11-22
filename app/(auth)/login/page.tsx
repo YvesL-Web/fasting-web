@@ -14,8 +14,6 @@ export default function LoginPage() {
     formState: { errors }
   } = form
 
-  console.log('generalError', generalError)
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100">
       <Card className="w-full max-w-md">
@@ -52,6 +50,11 @@ export default function LoginPage() {
               Pas encore de compte ?{' '}
               <a href="/register" className="text-blue-600 underline">
                 Créer un compte
+              </a>
+            </p>
+            <p className="text-sm text-center mt-2">
+              <a href="/forgot-password" className="text-blue-600 underline">
+                Forgot password ?
               </a>
             </p>
           </form>

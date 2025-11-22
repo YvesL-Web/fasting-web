@@ -1,6 +1,8 @@
 import { apiFetch } from '@/lib/api'
 import {
   resetPasswordFormSchema,
+  ResetPasswordInput,
+  ResetPasswordSchema,
   verifyEmailSchema,
   type ResetPasswordFormValues
 } from '@/schemas/auth.schemas'
@@ -32,9 +34,21 @@ export function useRequestPasswordReset() {
 
 export function useResetPassword() {
   return useMutation({
-    mutationFn: async (input: ResetPasswordFormValues) => {
-      const parsed = resetPasswordFormSchema.parse(input)
+    mutationFn: async (input: ResetPasswordInput) => {
+      const parsed = ResetPasswordSchema.parse(input)
       return apiFetch<void>('/auth/reset-password', {
+        method: 'POST',
+        body: parsed
+      })
+    }
+  })
+}
+
+export function useResendVerificationEmail() {
+  return useMutation({
+    mutationFn: async (input: { email: string }) => {
+      const parsed = verifyEmailSchema.pick({ email: true }).parse(input)
+      return apiFetch<{ ok: boolean; message?: string }>('/auth/resend-verification-code', {
         method: 'POST',
         body: parsed
       })
