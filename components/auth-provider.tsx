@@ -25,7 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUser = useCallback(async () => {
     try {
-      const res = await apiFetch<{ user: User }>('auth/me')
+      const res = await apiFetch<{ user: User }>('/auth/me')
       setUserState(res.user)
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {

@@ -5,6 +5,7 @@ export type User = {
   locale: 'en' | 'fr' | 'de'
   role: string
   subscriptionPlan: string
+  avatarUrl: string | null
   createdAt: string
   updatedAt: string
 }

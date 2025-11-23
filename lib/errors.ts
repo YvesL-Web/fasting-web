@@ -95,3 +95,18 @@ export function getFieldError(details: unknown, path: string): string | null {
   if (!errors || errors.length === 0) return null
   return errors[0]
 }
+
+export type BackendErrorDetails =
+  | {
+      reason?: string
+      scope?: string
+      otpReason?: 'expired_or_missing' | 'invalid' | 'too_many_attempts'
+      [key: string]: unknown
+    }
+  | undefined
+  | null
+
+export function parseDetails(err: ApiError): BackendErrorDetails {
+  if (!err.details || typeof err.details !== 'object') return undefined
+  return err.details as BackendErrorDetails
+}

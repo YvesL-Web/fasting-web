@@ -13,10 +13,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Loader2 } from 'lucide-react'
 
-import { useResetPassword } from '@/hooks/auth/use-auth'
+import { useRequestPasswordReset, useResetPassword } from '@/hooks/auth/use-auth'
 import { resetPasswordFormSchema, ResetPasswordFormValues } from '@/schemas/auth.schemas'
 import { toast } from 'sonner'
-import { isApiError } from '@/lib/errors'
+import { isApiError, parseDetails } from '@/lib/errors'
 
 export default function ResetPasswordPage() {
   const searchParams = useSearchParams()
@@ -25,7 +25,10 @@ export default function ResetPasswordPage() {
   const initialEmail = searchParams.get('email') ?? ''
 
   const [error, setError] = useState<string | null>(null)
-  const { mutateAsync, isPending } = useResetPassword()
+  const [rateLimited, setRateLimited] = useState(false)
+
+  const { mutateAsync: asyncReset, isPending: isReseting } = useResetPassword()
+  const { mutateAsync: asyncRequest, isPending: isRequesting } = useRequestPasswordReset()
 
   const form = useForm<ResetPasswordFormValues>({
     resolver: zodResolver(resetPasswordFormSchema),
@@ -40,26 +43,71 @@ export default function ResetPasswordPage() {
   const onSubmit = async (values: ResetPasswordFormValues) => {
     setError(null)
     try {
-      await mutateAsync({
+      await asyncReset({
         email: values.email,
         code: values.code,
         newPassword: values.newPassword
       })
 
-      toast.success('Mot de passe mis à jour', {
+      toast.success('Mot de passe mis à jour ✅', {
         description: 'Tu peux maintenant te connecter avec ton nouveau mot de passe.'
       })
       router.push('/login')
     } catch (error) {
-      console.log(error)
       if (isApiError(error)) {
-        setError(error.message)
-        toast.error('change password failed', { description: error.message })
+        const details = parseDetails(error)
+        if (details?.otpReason === 'too_many_attempts') {
+          setError('Trop de tentatives. Réessaie plus tard.')
+          toast.error('Trop de tentatives. Réessaie plus tard.')
+        } else if (details?.otpReason === 'expired_or_missing') {
+          setError('Code expiré. Tu peux demander un nouveau code.')
+          toast.error('Code expiré. Tu peux demander un nouveau code.')
+        } else if (details?.otpReason === 'invalid') {
+          setError('Code invalide. Vérifie et réessaie.')
+          toast.error('Code invalide. Vérifie et réessaie.')
+        } else {
+          setError(error.message)
+          toast.error('change password failed', { description: error.message })
+        }
       } else {
         setError('An unexpected error occurred.')
         toast.error('change password failed', {
           description: 'An unexpected error occurred.'
         })
+      }
+    }
+  }
+
+  const handleResend = async () => {
+    setError(null)
+    if (rateLimited) return
+
+    const email = form.getValues('email')
+    if (!email) {
+      setError('Merci de renseigner un email valide.')
+      return
+    }
+
+    try {
+      await asyncRequest({ email })
+      toast.success('Nouveau code envoyé 📩', {
+        description:
+          'Si un compte existe avec cet email, un nouveau code de réinitialisation a été envoyé.'
+      })
+    } catch (error) {
+      if (isApiError(error)) {
+        const details = parseDetails(error)
+        if (
+          error.code === 'RATE_LIMITED' ||
+          details?.reason === 'TOO_MANY_PASSWORD_RESET_RESENDS'
+        ) {
+          setError('Trop de demandes. Réessaie un peu plus tard.')
+          setRateLimited(true)
+        } else {
+          setError(error.message)
+        }
+      } else {
+        setError('Impossible de renvoyer le code.')
       }
     }
   }
@@ -121,9 +169,13 @@ export default function ResetPasswordPage() {
 
             {error && <p className="text-sm text-red-500">{error}</p>}
 
-            <Button type="submit" className="w-full" disabled={isPending}>
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isPending ? 'Mise à jour...' : 'Mettre à jour le mot de passe'}
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isReseting || isRequesting || rateLimited}
+            >
+              {isReseting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isReseting ? 'Mise à jour...' : 'Mettre à jour le mot de passe'}
             </Button>
 
             <p className="text-sm text-center mt-2">
@@ -131,6 +183,17 @@ export default function ResetPasswordPage() {
                 Retour à la connexion
               </Link>
             </p>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={handleResend}
+              disabled={isRequesting || isReseting || rateLimited}
+            >
+              {isRequesting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isRequesting ? 'Envoi du code' : 'Renvoyer le code'}
+            </Button>
           </form>
         </CardContent>
       </Card>
