@@ -1,14 +1,16 @@
+// app/(protected)/settings/page.tsx
 'use client'
 
+import { useRef } from 'react'
 import { useAuth } from '@/components/auth-provider'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { useRef } from 'react'
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+
 import { useUploadAvatar } from '@/hooks/user/use-upload-avatar'
 import { useDeleteAvatar } from '@/hooks/user/use-delete-avatar'
-import { isApiError } from '@/lib/errors'
 import { toast } from 'sonner'
+import { isApiError } from '@/lib/errors'
 
 export default function SettingsPage() {
   const { user } = useAuth()
@@ -16,12 +18,11 @@ export default function SettingsPage() {
   const deleteMutation = useDeleteAvatar()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
-  if (!user) {
-    // en théorie impossible car on est dans (protected), mais par sécurité :
-    return null
-  }
+  if (!user) return null
 
   const initialLetter = user.displayName?.charAt(0)?.toUpperCase() || 'U'
+  const isUploading = uploadMutation.isPending
+  const isDeleting = deleteMutation.isPending
 
   const handleSelectFile = () => {
     fileInputRef.current?.click()
@@ -30,8 +31,9 @@ export default function SettingsPage() {
   const handleFileChange: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
+
     if (!file.type.startsWith('image/')) {
-      toast.error('Fichier invalide', {
+      toast('Fichier invalide', {
         description: 'Merci de choisir une image.'
       })
       e.target.value = ''
@@ -43,7 +45,7 @@ export default function SettingsPage() {
       toast.success('Avatar mis à jour ✅')
     } catch (err) {
       if (isApiError(err)) {
-        toast.error('Erreur', {
+        toast('Erreur', {
           description: err.message
         })
       } else {
@@ -59,12 +61,12 @@ export default function SettingsPage() {
   const handleDeleteAvatar = async () => {
     try {
       await deleteMutation.mutateAsync()
-      toast.success('Avatar supprimé', {
+      toast('Avatar supprimé', {
         description: 'Ton avatar a été supprimé.'
       })
     } catch (err) {
       if (isApiError(err)) {
-        toast.error('Erreur', {
+        toast('Erreur', {
           description: err.message
         })
       } else {
@@ -75,24 +77,34 @@ export default function SettingsPage() {
     }
   }
 
-  const isUploading = uploadMutation.isPending
-  const isDeleting = deleteMutation.isPending
-
   return (
-    <div className="min-h-screen bg-slate-100 p-6">
-      <Card className="max-w-xl mx-auto">
-        <CardHeader>
-          <CardTitle>Mon profil</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Avatar + actions */}
-          <div className="flex items-center gap-4">
-            <Avatar className="h-16 w-16">
-              {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.displayName} />}
-              <AvatarFallback>{initialLetter}</AvatarFallback>
-            </Avatar>
+    <>
+      {/* header page */}
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-50">Profil & paramètres</h1>
+        <p className="text-sm text-slate-400">Gère ton profil, ta photo et tes préférences.</p>
+      </div>
 
-            <div className="flex flex-col gap-2">
+      <div className="grid gap-6 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+        {/* Colonne gauche : profil rapide */}
+        <Card className="border-slate-800 bg-slate-900/70">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-slate-100">Profil utilisateur</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-4">
+              <Avatar className="h-16 w-16">
+                {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.displayName} />}
+                <AvatarFallback>{initialLetter}</AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="text-sm font-medium text-slate-50">{user.displayName}</p>
+                <p className="text-xs text-slate-400">{user.email}</p>
+                <p className="mt-1 text-xs text-slate-500">Plan : {user.subscriptionPlan}</p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
               <div className="flex gap-2">
                 <Button
                   type="button"
@@ -115,7 +127,7 @@ export default function SettingsPage() {
                 )}
               </div>
               <p className="text-xs text-slate-500">
-                PNG, JPG, max 2 Mo. L’image est recadrée automatiquement.
+                PNG, JPG, max 2 Mo. L’image est recadrée automatiquement autour du visage.
               </p>
             </div>
 
@@ -126,25 +138,36 @@ export default function SettingsPage() {
               className="hidden"
               onChange={handleFileChange}
             />
-          </div>
+          </CardContent>
+        </Card>
 
-          {/* Infos utilisateur simples */}
-          <div className="space-y-2">
-            <div>
-              <p className="text-xs uppercase text-slate-500">Nom</p>
-              <p className="text-sm font-medium">{user.displayName}</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase text-slate-500">Email</p>
-              <p className="text-sm">{user.email}</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase text-slate-500">Langue</p>
-              <p className="text-sm">{user.locale}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+        {/* Colonne droite : autres réglages (placeholder pour l'instant) */}
+        <div className="space-y-4">
+          <Card className="border-slate-800 bg-slate-900/70">
+            <CardHeader>
+              <CardTitle className="text-sm font-medium text-slate-100">
+                Informations du compte
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <div>
+                <p className="text-xs uppercase text-slate-500">Nom</p>
+                <p className="text-slate-100">{user.displayName}</p>
+              </div>
+              <div>
+                <p className="text-xs uppercase text-slate-500">Email</p>
+                <p className="text-slate-100">{user.email}</p>
+              </div>
+              <div>
+                <p className="text-xs uppercase text-slate-500">Langue</p>
+                <p className="text-slate-100">{user.locale}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Tu pourras ajouter ici: changement mot de passe, langue, etc. */}
+        </div>
+      </div>
+    </>
   )
 }

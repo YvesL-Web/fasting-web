@@ -1,140 +1,169 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 
 import { useAuth } from '@/components/auth-provider'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { useFasts } from '@/hooks/fasts/use-fasts'
-import { useFastStats } from '@/hooks/fasts/use-fast-stats'
-import { useStartFast, useStopFast } from '@/hooks/fasts/use-fast-mutations'
+import { useFasts, useFastStats } from '@/hooks/fasts/use-fasts'
+import { useStartFast, useStopFast } from '@/hooks/fasts/use-fasts-mutations'
 
 export default function DashboardPage() {
-  const { user, logout } = useAuth()
-  const router = useRouter()
+  const { user } = useAuth()
 
-  // const { fasts, isLoading: isLoadingFasts, isError: isErrorFasts } = useFasts()
-  // const { stats, isLoading: isLoadingStats, isError: isErrorStats } = useFastStats()
-  // const { startFast, isStarting } = useStartFast()
-  // const { stopFast, isStopping } = useStopFast()
-
+  const { data: fastsData, isLoading: isLoadingFasts, isError: isErrorFasts } = useFasts()
+  const { data: statsData, isLoading: isLoadingStats, isError: isErrorStats } = useFastStats()
+  const startMutation = useStartFast()
+  const stopMutation = useStopFast()
   // const isMutating = isStarting || isStopping
 
-  const handleLogout = () => {
-    logout()
-    router.push('/login')
-  }
+  const isMutating = startMutation.isPending || stopMutation.isPending
+  const fasts = fastsData?.fasts ?? []
+  const stats = statsData?.stats
+  const currentFast = fasts.find((f) => !f.endAt) ?? null
 
   return (
-    <div className="min-h-screen bg-slate-100">
-      <header className="flex items-center justify-between px-6 py-4 bg-white shadow">
-        <div>
-          <h1 className="text-xl font-semibold">Fasting Dashboard</h1>
-          {user && (
-            <p className="text-sm text-slate-600">
-              Bonjour, <span className="font-medium">{user.displayName}</span>
+    <>
+      {/* Header page */}
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-50">Dashboard</h1>
+        <p className="text-sm text-slate-400">
+          {user
+            ? `Content de te revoir, ${user.displayName}.`
+            : 'Suis tes jeûnes et ta progression.'}
+        </p>
+      </div>
+
+      {/* Top cards */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {/* Actions / current fast */}
+        <Card className="border-slate-800 bg-slate-900/70">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-slate-100">Jeûne en cours</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {currentFast ? (
+              <>
+                <p className="text-sm text-slate-300">
+                  Type : <span className="font-medium">{currentFast.type}</span>
+                </p>
+                <p className="text-xs text-slate-400">
+                  Démarré le{' '}
+                  {new Date(currentFast.startAt).toLocaleString('fr-FR', {
+                    dateStyle: 'short',
+                    timeStyle: 'short'
+                  })}
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => stopMutation.mutate()}
+                    disabled={isMutating}
+                  >
+                    {stopMutation.isPending ? 'Arrêt en cours...' : 'Arrêter le jeûne'}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-slate-300">
+                  Aucun jeûne en cours. Lance un 16:8 pour commencer.
+                </p>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => startMutation.mutate()} disabled={isMutating}>
+                    {startMutation.isPending ? 'Démarrage...' : 'Démarrer un 16:8'}
+                  </Button>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Stats */}
+        <Card className="border-slate-800 bg-slate-900/70 md:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-slate-100">Statistiques</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoadingStats ? (
+              <p className="text-xs text-slate-400">Chargement des stats...</p>
+            ) : isErrorStats ? (
+              <p className="text-xs text-red-400">Impossible de charger les stats.</p>
+            ) : stats ? (
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-1">
+                  <p className="text-xs text-slate-400 uppercase">Jeûnes complétés</p>
+                  <p className="text-xl font-semibold text-slate-50">{stats.totalFasts}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-slate-400 uppercase">Heures totales</p>
+                  <p className="text-xl font-semibold text-slate-50">
+                    {stats.totalHours.toFixed(1)} h
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-slate-400 uppercase">Streak actuel</p>
+                  <p className="text-xl font-semibold text-slate-50">
+                    {stats.currentStreakDays} jour(s)
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400">
+                Aucune statistique pour le moment. Commence ton premier jeûne 🚀
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent fasts */}
+      <Card className="border-slate-800 bg-slate-900/70">
+        <CardHeader>
+          <CardTitle className="text-sm font-medium text-slate-100">Derniers jeûnes</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoadingFasts ? (
+            <p className="text-xs text-slate-400">Chargement des derniers jeûnes...</p>
+          ) : isErrorFasts ? (
+            <p className="text-xs text-red-400">Impossible de charger les jeûnes.</p>
+          ) : fasts.length === 0 ? (
+            <p className="text-xs text-slate-400">
+              Aucun jeûne pour l&apos;instant. Lance-en un pour voir ton historique ici.
             </p>
-          )}
-        </div>
-        <Button variant="outline" onClick={handleLogout}>
-          Logout
-        </Button>
-      </header>
-
-      {/* <main className="p-6 space-y-6">
-        <section className="flex gap-4 flex-wrap">
-          <Card className="flex-1 min-w-[250px]">
-            <CardHeader>
-              <CardTitle>Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="flex gap-2">
-              <Button onClick={startFast} disabled={isMutating}>
-                {isStarting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isStarting ? 'Starting...' : 'Start 16:8'}
-              </Button>
-              <Button variant="outline" onClick={stopFast} disabled={isMutating}>
-                {isStopping && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isStopping ? 'Stopping...' : 'Stop'}
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="flex-1 min-w-[250px]">
-            <CardHeader>
-              <CardTitle>Stats</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isLoadingStats ? (
-                <p className="text-sm text-slate-500">Chargement des stats...</p>
-              ) : isErrorStats ? (
-                <p className="text-sm text-red-500">Impossible de charger les stats.</p>
-              ) : stats ? (
-                <ul className="space-y-1 text-sm">
-                  <li>Total fasts: {stats.totalFasts}</li>
-                  <li>Total hours: {stats.totalHours.toFixed(1)}</li>
-                  <li>Average: {stats.averageHours.toFixed(1)} h</li>
-                  <li>Longest: {stats.longestFastHours.toFixed(1)} h</li>
-                  <li>Streak: {stats.currentStreakDays} day(s)</li>
-                </ul>
-              ) : (
-                <p className="text-sm text-slate-500">No stats yet. Start your first fast 🚀</p>
-              )}
-            </CardContent>
-          </Card>
-        </section>
-
-        <section>
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent fasts</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isLoadingFasts ? (
-                <p className="text-sm text-slate-500">Chargement des derniers jeûnes...</p>
-              ) : isErrorFasts ? (
-                <p className="text-sm text-red-500">Impossible de charger les jeûnes.</p>
-              ) : fasts.length === 0 ? (
-                <p className="text-sm text-slate-500">No fasts yet. Start one above.</p>
-              ) : (
-                <ul className="space-y-2 text-sm">
-                  {fasts.map((f) => (
-                    <li
-                      key={f.id}
-                      className="flex items-center justify-between border-b pb-1 last:border-b-0"
-                    >
-                      <div>
-                        <p className="font-medium">{f.type}</p>
-                        <p className="text-xs text-slate-500">
-                          Start{' '}
-                          {new Date(f.startAt).toLocaleString('fr-FR', {
+          ) : (
+            <ul className="divide-y divide-slate-800">
+              {fasts.map((f) => (
+                <li key={f.id} className="flex items-center justify-between py-2 text-sm">
+                  <div>
+                    <p className="font-medium text-slate-100">{f.type}</p>
+                    <p className="text-xs text-slate-400">
+                      Début :{' '}
+                      {new Date(f.startAt).toLocaleString('fr-FR', {
+                        dateStyle: 'short',
+                        timeStyle: 'short'
+                      })}
+                      {f.endAt && (
+                        <>
+                          {' '}
+                          – Fin :{' '}
+                          {new Date(f.endAt).toLocaleString('fr-FR', {
                             dateStyle: 'short',
                             timeStyle: 'short'
                           })}
-                          {f.endAt && (
-                            <>
-                              {' '}
-                              – End{' '}
-                              {new Date(f.endAt).toLocaleString('fr-FR', {
-                                dateStyle: 'short',
-                                timeStyle: 'short'
-                              })}
-                            </>
-                          )}
-                        </p>
-                      </div>
-                      <span className="text-xs text-slate-500">
-                        {f.endAt ? 'Done' : 'In progress'}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
-        </section>
-      </main> */}
-    </div>
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  <span className="text-xs text-slate-400">{f.endAt ? 'Terminé' : 'En cours'}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+    </>
   )
 }

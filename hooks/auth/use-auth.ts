@@ -1,12 +1,13 @@
 import { apiFetch } from '@/lib/api'
 import {
-  resetPasswordFormSchema,
+  LoginInput,
+  RegisterInput,
   ResetPasswordInput,
   ResetPasswordSchema,
-  verifyEmailSchema,
-  type ResetPasswordFormValues
+  verifyEmailSchema
 } from '@/schemas/auth.schemas'
 import { useMutation } from '@tanstack/react-query'
+import { LoginResponse } from '@/types/auth'
 
 export function useVerifyEmail() {
   return useMutation({
@@ -51,6 +52,28 @@ export function useResendVerificationEmail() {
       return apiFetch<{ ok: boolean; message?: string }>('/auth/resend-verification-code', {
         method: 'POST',
         body: parsed
+      })
+    }
+  })
+}
+
+export function useLogin() {
+  return useMutation({
+    mutationFn: async (input: LoginInput) => {
+      return apiFetch<LoginResponse>('/auth/login', {
+        method: 'POST',
+        body: input
+      })
+    }
+  })
+}
+
+export function useRegister() {
+  return useMutation({
+    mutationFn: async (input: RegisterInput) => {
+      return apiFetch<{ message: string }>('/auth/register', {
+        method: 'POST',
+        body: input
       })
     }
   })

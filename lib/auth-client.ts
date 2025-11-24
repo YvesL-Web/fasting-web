@@ -1,15 +1,15 @@
 import { apiFetch } from './api'
-import type { LoginFormValues, RegisterFormValues } from '@/schemas/auth.schemas'
+import type { LoginInput, RegisterInput } from '@/schemas/auth.schemas'
 import type { LoginResponse, User } from '@/types/auth'
 
-export function login(input: LoginFormValues) {
+export function login(input: LoginInput) {
   return apiFetch<LoginResponse>('/auth/login', {
     method: 'POST',
     body: input
   })
 }
 
-export function register(input: RegisterFormValues) {
+export function register(input: RegisterInput) {
   return apiFetch<LoginResponse>('/auth/register', {
     method: 'POST',
     body: input

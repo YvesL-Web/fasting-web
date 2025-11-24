@@ -5,7 +5,7 @@ export const loginSchema = z.object({
   password: z.string().min(8).max(100)
 })
 
-export type LoginFormValues = z.infer<typeof loginSchema>
+export type LoginInput = z.infer<typeof loginSchema>
 
 export const registerSchema = z.object({
   email: z.email(),
@@ -13,7 +13,7 @@ export const registerSchema = z.object({
   displayName: z.string().min(1).max(100),
   locale: z.enum(['en', 'fr', 'de']).default('en').nonoptional()
 })
-export type RegisterFormValues = z.infer<typeof registerSchema>
+export type RegisterInput = z.infer<typeof registerSchema>
 
 export const requestPasswordResetFormSchema = z.object({
   email: z.email()
