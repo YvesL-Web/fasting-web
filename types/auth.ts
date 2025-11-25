@@ -33,3 +33,11 @@ export type VerifyEmailInput = {
 export type RequestPasswordResetInput = {
   email: string
 }
+
+export type SessionInfo = {
+  id: string
+  ip: string | null
+  userAgent: string | null
+  createdAt: string
+  isCurrent: boolean
+}
