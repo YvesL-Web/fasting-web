@@ -15,12 +15,24 @@ export type FastPhase = 'FASTING_WINDOW' | 'EATING_WINDOW' | 'OUTSIDE_WINDOWS'
 
 export type FastTimerState = {
   now: Date
+
+  // temps depuis le début du jeûne
   elapsedMs: number
   elapsedHours: number
-  remainingMs: number | null
-  remainingHours: number | null
-  progress: number | null
-  isOverTarget: boolean
+
+  // temps restant jusqu'à la fin du jeûne cible (fastTargetEndAt)
+  fastTargetRemainingMs: number | null
+  fastTargetRemainingHours: number | null
+
+  // temps restant jusqu'à la fin de la fenêtre d'alimentation
+  eatingWindowRemainingMs: number | null
+  eatingWindowRemainingHours: number | null
+
+  // progression par rapport à la durée cible du jeûne (0 → 1)
+  fastProgress: number | null
+  isOverFastTarget: boolean
+
+  // phase actuelle (fenêtre de jeûne / repas / hors fenêtres)
   phase: FastPhase
   isInFastingWindow: boolean
   isInEatingWindow: boolean
@@ -38,17 +50,19 @@ export function useFastTimer(fast: FastLike | null): FastTimerState {
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [fast, fast?.startAt, fast?.endAt, fast?.fastTargetEndAt, fast?.eatingWindowEndAt])
+  }, [fast?.startAt, fast?.endAt, fast?.fastTargetEndAt, fast?.eatingWindowEndAt])
 
   if (!fast) {
     return {
       now,
       elapsedMs: 0,
       elapsedHours: 0,
-      remainingMs: null,
-      remainingHours: null,
-      progress: null,
-      isOverTarget: false,
+      fastTargetRemainingMs: null,
+      fastTargetRemainingHours: null,
+      eatingWindowRemainingMs: null,
+      eatingWindowRemainingHours: null,
+      fastProgress: null,
+      isOverFastTarget: false,
       phase: 'OUTSIDE_WINDOWS',
       isInFastingWindow: false,
       isInEatingWindow: false,
@@ -64,17 +78,17 @@ export function useFastTimer(fast: FastLike | null): FastTimerState {
 
   // Durée cible de jeûne
   const targetHours = fast.targetDurationHours ?? null
-  let remainingMs: number | null = null
-  let remainingHours: number | null = null
-  let progress: number | null = null
-  let isOverTarget = false
+  let fastTargetRemainingMs: number | null = null
+  let fastTargetRemainingHours: number | null = null
+  let fastProgress: number | null = null
+  let isOverFastTarget = false
 
   if (targetHours && targetHours > 0) {
     const targetMs = targetHours * 60 * 60 * 1000
-    remainingMs = Math.max(0, targetMs - elapsedMs)
-    remainingHours = remainingMs / (1000 * 60 * 60)
-    progress = Math.min(1, elapsedMs / targetMs)
-    isOverTarget = elapsedMs >= targetMs
+    fastTargetRemainingMs = Math.max(0, targetMs - elapsedMs)
+    fastTargetRemainingHours = fastTargetRemainingMs / (1000 * 60 * 60)
+    fastProgress = Math.min(1, elapsedMs / targetMs)
+    isOverFastTarget = elapsedMs >= targetMs
   }
 
   // Fenêtres fasting/eating basées sur les dates renvoyées par l’API
@@ -103,6 +117,17 @@ export function useFastTimer(fast: FastLike | null): FastTimerState {
     phase = 'OUTSIDE_WINDOWS'
   }
 
+  // Temps restant jusqu'à la fin de la fenêtre d'alimentation
+  let eatingWindowRemainingMs: number | null = null
+  let eatingWindowRemainingHours: number | null = null
+  if (eatingEnd) {
+    const diff = eatingEnd.getTime() - nowMs
+    if (diff > 0) {
+      eatingWindowRemainingMs = diff
+      eatingWindowRemainingHours = diff / (1000 * 60 * 60)
+    }
+  }
+
   let phaseLabel: string
   if (phase === 'FASTING_WINDOW') {
     phaseLabel = 'Fenêtre de jeûne'
@@ -116,10 +141,12 @@ export function useFastTimer(fast: FastLike | null): FastTimerState {
     now,
     elapsedMs,
     elapsedHours,
-    remainingMs,
-    remainingHours,
-    progress,
-    isOverTarget,
+    fastTargetRemainingMs,
+    fastTargetRemainingHours,
+    eatingWindowRemainingMs,
+    eatingWindowRemainingHours,
+    fastProgress,
+    isOverFastTarget,
     phase,
     isInFastingWindow,
     isInEatingWindow,

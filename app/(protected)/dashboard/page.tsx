@@ -12,9 +12,13 @@ import { FastingPreset } from '@/types/fasts'
 import { cn } from '@/lib/utils'
 import { formatDurationH } from '@/lib/time'
 import { useFastTimer } from '@/hooks/fasts/use-fast-timer'
+import { formatDateYMD, formatHMSFromMs, formatShortDurationFromHours } from '@/utils/formatDate'
+import { FoodJournalCard } from '@/components/dashboard/food-journal-card'
+import { Textarea } from '@/components/ui/textarea'
 
 export default function DashboardPage() {
   const { user } = useAuth()
+  const today = formatDateYMD(new Date())
 
   const { data: fastsData, isLoading: isLoadingFasts, isError: isErrorFasts } = useFasts()
   const { data: statsData, isLoading: isLoadingStats, isError: isErrorStats } = useFastStats()
@@ -27,7 +31,6 @@ export default function DashboardPage() {
   } = useFastingPresets()
 
   const presets = presetsData?.presets ?? []
-  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null)
 
   const defaultPresetId = useMemo(() => {
     if (!presets.length) return '16_8'
@@ -35,18 +38,37 @@ export default function DashboardPage() {
     return sixteen?.id ?? presets[0].id
   }, [presets])
 
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null)
+  const [startNotes, setStartNotes] = useState<string>('')
+
   const effectivePresetId = selectedPresetId ?? defaultPresetId
+
   const isMutating = startMutation.isPending || stopMutation.isPending
+
   const fasts = fastsData?.fasts ?? []
   const stats = statsData?.stats
+
   const currentFast = fasts.find((f) => !f.endAt) ?? null
   const timer = useFastTimer(currentFast)
 
   const selectedPreset: FastingPreset | undefined = presets.find((p) => p.id === effectivePresetId)
+
   const currentPresetForFast: FastingPreset | undefined =
     currentFast && currentFast.targetDurationHours
       ? presets.find((p) => p.fastingHours === currentFast.targetDurationHours)
       : presets.find((p) => p.id === currentFast?.type)
+
+  const elapsedLabel = currentFast ? formatHMSFromMs(timer.elapsedMs) : '00:00:00'
+
+  const fastTargetRemainingLabel =
+    currentFast && timer.fastTargetRemainingHours != null
+      ? formatShortDurationFromHours(timer.fastTargetRemainingHours)
+      : null
+
+  const eatingWindowRemainingLabel =
+    currentFast && timer.eatingWindowRemainingHours != null
+      ? formatShortDurationFromHours(timer.eatingWindowRemainingHours)
+      : null
 
   return (
     <>
@@ -62,7 +84,7 @@ export default function DashboardPage() {
 
       {/* Top cards */}
       <div className="grid gap-4 md:grid-cols-3">
-        {/* Jeûne en cours / démarrage */}
+        {/* Jeûne en cours / démarrage / stats */}
         <Card className="border-slate-800 bg-slate-900/70">
           <CardHeader>
             <div className="flex items-center justify-between gap-2">
@@ -126,103 +148,120 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* Zone de status / minuteur */}
-            {currentFast ? (
-              <div className="space-y-3">
-                <p className="text-sm text-slate-300">
-                  Type :{' '}
-                  <span className="font-medium">
-                    {currentPresetForFast?.label ?? currentFast.type}
-                  </span>
-                </p>
-
-                {currentFast.targetDurationHours && (
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs text-slate-400">
-                      <span>
-                        {timer.phase === 'FASTING_WINDOW'
-                          ? 'Temps de jeûne'
-                          : timer.phase === 'EATING_WINDOW'
-                          ? 'Temps de jeûne réalisé'
-                          : 'Temps de jeûne total'}
+            {/* Minuteur */}
+            <div className="rounded-md border border-slate-800 bg-slate-950/60 p-3 space-y-3">
+              <div className="flex items-baseline justify-between gap-2">
+                <div>
+                  <p className="text-xs uppercase text-slate-500">Temps de jeûne</p>
+                  <p className="font-mono text-2xl font-semibold text-slate-50">{elapsedLabel}</p>
+                </div>
+                {currentFast && currentPresetForFast && (
+                  <div className="text-right">
+                    <p className="text-[11px] uppercase text-slate-500">Objectif</p>
+                    <p className="text-sm font-medium text-slate-100">
+                      {currentPresetForFast.label}{' '}
+                      <span className="text-[11px] text-slate-400">
+                        ({currentPresetForFast.fastingHours}h jeûne)
                       </span>
-                      <span>
-                        {formatDurationH(timer.elapsedHours)} /{' '}
-                        {formatDurationH(currentFast.targetDurationHours)}
-                      </span>
-                    </div>
-                    {timer.progress !== null && (
-                      <Progress value={timer.progress * 100} className="h-2" />
-                    )}
-                    <p className="text-xs text-slate-400">
-                      {timer.phase === 'FASTING_WINDOW' && !timer.isOverTarget
-                        ? `Encore ~${formatDurationH(
-                            timer.remainingHours ?? 0
-                          )} pour atteindre ton objectif.`
-                        : timer.phase === 'FASTING_WINDOW' && timer.isOverTarget
-                        ? 'Tu as dépassé ton objectif de jeûne 🎉 Tu peux stopper quand tu veux.'
-                        : timer.phase === 'EATING_WINDOW'
-                        ? 'Fenêtre d’alimentation : mange de façon consciente et équilibrée. 🥗'
-                        : 'Fenêtres planifiées terminées pour ce cycle.'}
                     </p>
                   </div>
                 )}
+              </div>
 
-                <p className="text-xs text-slate-500">
-                  Démarré le{' '}
+              {currentFast && currentFast.targetDurationHours && (
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[11px] text-slate-400">
+                    <span>Progression</span>
+                    <span>
+                      {timer.fastProgress !== null
+                        ? `${Math.round(timer.fastProgress * 100)} %`
+                        : '–'}
+                    </span>
+                  </div>
+                  {timer.fastProgress !== null && (
+                    <Progress value={timer.fastProgress * 100} className="h-2" />
+                  )}
+                  <p className="text-[11px] text-slate-400">
+                    {timer.fastTargetRemainingHours != null && !timer.isOverFastTarget
+                      ? `Encore ~${fastTargetRemainingLabel} pour atteindre ton objectif.`
+                      : timer.isOverFastTarget
+                      ? 'Tu as dépassé ton objectif de jeûne 🎉 Tu peux stopper quand tu veux.'
+                      : 'Objectif de durée non défini.'}
+                  </p>
+                </div>
+              )}
+
+              {currentFast && (
+                <div className="space-y-1 text-[11px] text-slate-500">
+                  {currentFast.fastTargetEndAt && (
+                    <p>
+                      Fin de la fenêtre de jeûne prévue :{' '}
+                      {new Date(currentFast.fastTargetEndAt).toLocaleString('fr-FR', {
+                        dateStyle: 'short',
+                        timeStyle: 'short'
+                      })}
+                    </p>
+                  )}
+                  {currentFast.eatingWindowStartAt && currentFast.eatingWindowEndAt && (
+                    <p>
+                      Fenêtre d’alimentation théorique :{' '}
+                      {new Date(currentFast.eatingWindowStartAt).toLocaleTimeString('fr-FR', {
+                        timeStyle: 'short'
+                      })}{' '}
+                      –{' '}
+                      {new Date(currentFast.eatingWindowEndAt).toLocaleTimeString('fr-FR', {
+                        timeStyle: 'short'
+                      })}
+                      {eatingWindowRemainingLabel && timer.phase === 'EATING_WINDOW' && (
+                        <> • reste ~{eatingWindowRemainingLabel}</>
+                      )}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Form démarrage / arrêt */}
+            {currentFast ? (
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs text-slate-400">
+                  Jeûne démarré le{' '}
                   {new Date(currentFast.startAt).toLocaleString('fr-FR', {
                     dateStyle: 'short',
                     timeStyle: 'short'
                   })}
                 </p>
-
-                {currentFast.fastTargetEndAt && (
-                  <p className="text-[11px] text-slate-500">
-                    Fin de la fenêtre de jeûne prévue :{' '}
-                    {new Date(currentFast.fastTargetEndAt).toLocaleString('fr-FR', {
-                      dateStyle: 'short',
-                      timeStyle: 'short'
-                    })}
-                  </p>
-                )}
-
-                {currentFast.eatingWindowStartAt && currentFast.eatingWindowEndAt && (
-                  <p className="text-[11px] text-slate-500">
-                    Fenêtre d’alimentation :{' '}
-                    {new Date(currentFast.eatingWindowStartAt).toLocaleTimeString('fr-FR', {
-                      timeStyle: 'short'
-                    })}{' '}
-                    –{' '}
-                    {new Date(currentFast.eatingWindowEndAt).toLocaleTimeString('fr-FR', {
-                      timeStyle: 'short'
-                    })}
-                  </p>
-                )}
-
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => stopMutation.mutate()}
-                    disabled={isMutating}
-                  >
-                    {stopMutation.isPending ? 'Arrêt en cours...' : 'Arrêter le jeûne'}
-                  </Button>
-                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => stopMutation.mutate()}
+                  disabled={isMutating}
+                >
+                  {stopMutation.isPending ? 'Arrêt en cours...' : 'Arrêter le jeûne'}
+                </Button>
               </div>
             ) : (
               <div className="space-y-3">
-                <p className="text-sm text-slate-300">
-                  Aucun jeûne en cours. Choisis un type puis lance ton jeûne.
-                </p>
                 {selectedPreset && (
                   <p className="text-xs text-slate-400">
                     Tu as sélectionné <span className="font-medium">{selectedPreset.label}</span> :{' '}
-                    {selectedPreset.fastingHours}h de jeûne / {selectedPreset.eatingHours}h de
-                    fenêtre d&apos;alimentation.
+                    {selectedPreset.fastingHours}h de jeûne / {selectedPreset.eatingHours}h
+                    d&apos;alimentation.
                   </p>
                 )}
-                <div className="flex gap-2">
+                <div className="space-y-1.5">
+                  <p className="text-xs text-slate-300">
+                    Notes (optionnel) – comment tu te sens avant ce jeûne ?
+                  </p>
+                  <Textarea
+                    rows={2}
+                    placeholder="Ex : un peu fatigué, j’ai bien mangé ce midi..."
+                    value={startNotes}
+                    onChange={(e) => setStartNotes(e.target.value)}
+                    className="resize-none text-sm"
+                  />
+                </div>
+                <div className="flex justify-end">
                   <Button
                     size="sm"
                     onClick={() => startMutation.mutate()}
@@ -237,6 +276,7 @@ export default function DashboardPage() {
         </Card>
 
         {/* Stats */}
+
         <Card className="border-slate-800 bg-slate-900/70 md:col-span-2">
           <CardHeader>
             <CardTitle className="text-sm font-medium text-slate-100">Statistiques</CardTitle>
@@ -274,51 +314,57 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Derniers jeûnes */}
-      <Card className="border-slate-800 bg-slate-900/70">
-        <CardHeader>
-          <CardTitle className="text-sm font-medium text-slate-100">Derniers jeûnes</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoadingFasts ? (
-            <p className="text-xs text-slate-400">Chargement des derniers jeûnes...</p>
-          ) : isErrorFasts ? (
-            <p className="text-xs text-red-400">Impossible de charger les jeûnes.</p>
-          ) : fasts.length === 0 ? (
-            <p className="text-xs text-slate-400">
-              Aucun jeûne pour l&apos;instant. Lance-en un pour voir ton historique ici.
-            </p>
-          ) : (
-            <ul className="divide-y divide-slate-800">
-              {fasts.map((f) => (
-                <li key={f.id} className="flex items-center justify-between py-2 text-sm">
-                  <div>
-                    <p className="font-medium text-slate-100">{f.type}</p>
-                    <p className="text-xs text-slate-400">
-                      Début :{' '}
-                      {new Date(f.startAt).toLocaleString('fr-FR', {
-                        dateStyle: 'short',
-                        timeStyle: 'short'
-                      })}
-                      {f.endAt && (
-                        <>
-                          {' '}
-                          – Fin :{' '}
-                          {new Date(f.endAt).toLocaleString('fr-FR', {
-                            dateStyle: 'short',
-                            timeStyle: 'short'
-                          })}
-                        </>
-                      )}
-                    </p>
-                  </div>
-                  <span className="text-xs text-slate-400">{f.endAt ? 'Terminé' : 'En cours'}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+      {/* Derniers jeûnes + Journal alimentaire */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card className="border-slate-800 bg-slate-900/70">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-slate-100">Derniers jeûnes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoadingFasts ? (
+              <p className="text-xs text-slate-400">Chargement des derniers jeûnes...</p>
+            ) : isErrorFasts ? (
+              <p className="text-xs text-red-400">Impossible de charger les jeûnes.</p>
+            ) : fasts.length === 0 ? (
+              <p className="text-xs text-slate-400">
+                Aucun jeûne pour l&apos;instant. Lance-en un pour voir ton historique ici.
+              </p>
+            ) : (
+              <ul className="divide-y divide-slate-800">
+                {fasts.map((f) => (
+                  <li key={f.id} className="flex items-center justify-between py-2 text-sm">
+                    <div>
+                      <p className="font-medium text-slate-100">{f.type}</p>
+                      <p className="text-xs text-slate-400">
+                        Début :{' '}
+                        {new Date(f.startAt).toLocaleString('fr-FR', {
+                          dateStyle: 'short',
+                          timeStyle: 'short'
+                        })}
+                        {f.endAt && (
+                          <>
+                            {' '}
+                            – Fin :{' '}
+                            {new Date(f.endAt).toLocaleString('fr-FR', {
+                              dateStyle: 'short',
+                              timeStyle: 'short'
+                            })}
+                          </>
+                        )}
+                      </p>
+                    </div>
+                    <span className="text-xs text-slate-400">
+                      {f.endAt ? 'Terminé' : 'En cours'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
+        <FoodJournalCard today={today} currentFast={currentFast} timer={timer} />
+      </div>
     </>
   )
 }
