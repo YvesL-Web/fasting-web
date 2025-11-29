@@ -14,6 +14,10 @@ import { Fast } from '@/types/fasts'
 import { useCreateFoodEntry, useFoodEntries } from '@/hooks/food/use-food'
 import { toast } from 'sonner'
 import { isApiError } from '@/lib/errors'
+import { useState } from 'react'
+import { useFoodSearch } from '@/hooks/food/use-food-search'
+import { FoodItem } from '@/types/food'
+import { ScrollArea } from '../ui/scroll-area'
 
 type Props = {
   today: string
@@ -34,6 +38,21 @@ export function FoodJournalCard({ today, currentFast, timer }: Props) {
       calories: undefined
     }
   })
+
+  const [searchTerm, setSearchTerm] = useState('')
+  const [showResults, setShowResults] = useState(false)
+
+  const { data: searchData, isLoading: isSearching } = useFoodSearch(searchTerm)
+  const searchResults = searchData?.items ?? []
+
+  const handleSelectFood = (item: FoodItem) => {
+    form.setValue('label', item.label, { shouldValidate: true, shouldDirty: true })
+    if (item.calories != null) {
+      form.setValue('calories', item.calories, { shouldValidate: true, shouldDirty: true })
+    }
+    setSearchTerm(item.label)
+    setShowResults(false)
+  }
 
   const onSubmit = async (values: z.infer<typeof foodEntryFormSchema>) => {
     try {
@@ -103,6 +122,69 @@ export function FoodJournalCard({ today, currentFast, timer }: Props) {
           onSubmit={form.handleSubmit(onSubmit)}
           noValidate
         >
+          {/* Recherche rapide dans le catalogue d'aliments */}
+          <div className="space-y-1.5">
+            <Label htmlFor="food-search" className="text-xs text-slate-200">
+              Rechercher un aliment (optionnel)
+            </Label>
+            <Input
+              id="food-search"
+              placeholder="Ex : pomme, riz, poulet..."
+              className="text-slate-200"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value)
+                setShowResults(true)
+              }}
+              onFocus={() => {
+                if (searchTerm.trim().length >= 2) setShowResults(true)
+              }}
+            />
+            {isSearching && (
+              <p className="mt-1 text-[11px] text-slate-400">Recherche d&apos;aliments...</p>
+            )}
+
+            {showResults && searchTerm.trim().length >= 2 && (
+              <div className="mt-1 rounded-md border border-slate-800 bg-slate-950/90">
+                {searchResults.length === 0 && !isSearching ? (
+                  <p className="px-3 py-2 text-[11px] text-slate-500">
+                    Aucun aliment trouvé pour &quot;{searchTerm}&quot;.
+                  </p>
+                ) : (
+                  <ScrollArea className="max-h-40">
+                    <ul className="divide-y divide-slate-800">
+                      {searchResults.map((item) => (
+                        <li
+                          key={item.id}
+                          className="cursor-pointer px-3 py-2 text-[11px] hover:bg-slate-900/80"
+                          onClick={() => handleSelectFood(item)}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div>
+                              <p className="font-medium text-slate-100">{item.label}</p>
+                              {item.brand && (
+                                <p className="text-[10px] text-slate-400">{item.brand}</p>
+                              )}
+                              {item.servingSize && (
+                                <p className="text-[10px] text-slate-500">
+                                  Portion : {item.servingSize}
+                                </p>
+                              )}
+                            </div>
+                            {item.calories != null && (
+                              <p className="text-[11px] font-semibold text-slate-100">
+                                {item.calories} kcal
+                              </p>
+                            )}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </ScrollArea>
+                )}
+              </div>
+            )}
+          </div>
           <div className="space-y-1.5">
             <Label htmlFor="label" className="text-xs text-slate-200">
               Qu&apos;as-tu mangé ?

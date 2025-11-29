@@ -4,14 +4,8 @@ import { subDays } from 'date-fns'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { useFoodSummary } from '@/hooks/fasts/use-food-summary'
-
-function formatDateYMD(d: Date): string {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
+import { useFoodSummary } from '@/hooks/food/use-food-summary'
+import { formatDateYMD } from '@/lib/time'
 
 export function FoodJournalStatsCard() {
   const today = new Date()

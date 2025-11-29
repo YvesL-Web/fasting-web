@@ -7,7 +7,7 @@ import { useAuth } from '@/components/auth-provider'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
-import { LogOut, LayoutDashboard, Settings } from 'lucide-react'
+import { LogOut, LayoutDashboard, Settings, CircuitBoard } from 'lucide-react'
 
 type AppShellProps = {
   children: ReactNode
@@ -15,6 +15,7 @@ type AppShellProps = {
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/nutrition', label: 'Nutrition', icon: CircuitBoard },
   { href: '/settings', label: 'Profil & compte', icon: Settings }
 ]
 

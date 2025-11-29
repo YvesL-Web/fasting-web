@@ -11,11 +11,12 @@ import { useMemo, useState } from 'react'
 import { Fast, FastingPreset } from '@/types/fasts'
 import { cn } from '@/lib/utils'
 import { useFastTimer } from '@/hooks/fasts/use-fast-timer'
-import { formatDateYMD, formatHMSFromMs, formatShortDurationFromHours } from '@/utils/formatDate'
+
 import { FoodJournalCard } from '@/components/dashboard/food-journal-card'
 import { Textarea } from '@/components/ui/textarea'
 import { FoodJournalStatsCard } from '@/components/dashboard/food-journal-stats-card'
 import { FastCoachDialog } from '@/components/dashboard/fast-coach-dialog'
+import { formatDateYMD, formatHMSFromMs, formatShortDurationFromHours } from '@/lib/time'
 
 export default function DashboardPage() {
   const { user } = useAuth()
