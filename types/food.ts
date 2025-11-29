@@ -23,3 +23,17 @@ export type CreateFoodEntryInput = {
   carbsGrams?: number | null
   fatGrams?: number | null
 }
+
+export type FoodDaySummary = {
+  day: string // YYYY-MM-DD
+  totalCalories: number
+  inWindowCalories: number
+  outWindowCalories: number
+  entriesCount: number
+}
+
+export type FoodSummaryResponse = {
+  from: string
+  to: string
+  days: FoodDaySummary[]
+}

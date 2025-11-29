@@ -8,13 +8,14 @@ import { useFastingPresets, useFasts, useFastStats } from '@/hooks/fasts/use-fas
 import { useStartFast, useStopFast } from '@/hooks/fasts/use-fasts-mutations'
 import { Progress } from '@/components/ui/progress'
 import { useMemo, useState } from 'react'
-import { FastingPreset } from '@/types/fasts'
+import { Fast, FastingPreset } from '@/types/fasts'
 import { cn } from '@/lib/utils'
-import { formatDurationH } from '@/lib/time'
 import { useFastTimer } from '@/hooks/fasts/use-fast-timer'
 import { formatDateYMD, formatHMSFromMs, formatShortDurationFromHours } from '@/utils/formatDate'
 import { FoodJournalCard } from '@/components/dashboard/food-journal-card'
 import { Textarea } from '@/components/ui/textarea'
+import { FoodJournalStatsCard } from '@/components/dashboard/food-journal-stats-card'
+import { FastCoachDialog } from '@/components/dashboard/fast-coach-dialog'
 
 export default function DashboardPage() {
   const { user } = useAuth()
@@ -69,6 +70,11 @@ export default function DashboardPage() {
     currentFast && timer.eatingWindowRemainingHours != null
       ? formatShortDurationFromHours(timer.eatingWindowRemainingHours)
       : null
+
+  const lastCompletedFast: Fast | null =
+    fasts
+      .filter((f) => !!f.endAt)
+      .sort((a, b) => new Date(b.endAt!).getTime() - new Date(a.endAt!).getTime())[0] ?? null
 
   return (
     <>
@@ -317,8 +323,9 @@ export default function DashboardPage() {
       {/* Derniers jeûnes + Journal alimentaire */}
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="border-slate-800 bg-slate-900/70">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-medium text-slate-100">Derniers jeûnes</CardTitle>
+            {lastCompletedFast && <FastCoachDialog fast={lastCompletedFast} />}
           </CardHeader>
           <CardContent>
             {isLoadingFasts ? (
@@ -364,6 +371,9 @@ export default function DashboardPage() {
         </Card>
 
         <FoodJournalCard today={today} currentFast={currentFast} timer={timer} />
+      </div>
+      <div className="grid gap-4 md:grid-cols-1">
+        <FoodJournalStatsCard />
       </div>
     </>
   )

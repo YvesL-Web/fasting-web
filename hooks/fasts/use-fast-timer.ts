@@ -50,7 +50,7 @@ export function useFastTimer(fast: FastLike | null): FastTimerState {
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [fast?.startAt, fast?.endAt, fast?.fastTargetEndAt, fast?.eatingWindowEndAt])
+  }, [fast, fast?.startAt, fast?.endAt, fast?.fastTargetEndAt, fast?.eatingWindowEndAt])
 
   if (!fast) {
     return {
