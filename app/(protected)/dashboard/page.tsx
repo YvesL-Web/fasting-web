@@ -265,7 +265,7 @@ export default function DashboardPage() {
                     placeholder="Ex : un peu fatigué, j’ai bien mangé ce midi..."
                     value={startNotes}
                     onChange={(e) => setStartNotes(e.target.value)}
-                    className="resize-none text-sm"
+                    className="resize-none text-sm text-slate-300 "
                   />
                 </div>
                 <div className="flex justify-end">

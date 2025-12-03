@@ -9,3 +9,28 @@ export const foodEntryFormSchema = z.object({
 })
 
 export type FoodEntryFormValues = z.infer<typeof foodEntryFormSchema>
+
+export const foodItemFormSchema = z.object({
+  label: z.string().min(2, 'Nom trop court').max(255, 'Nom trop long'),
+  brand: z.string().max(255, 'Marque trop longue').optional().or(z.literal('')),
+  servingSize: z.string().max(50, 'Taille de portion trop longue').optional().or(z.literal('')),
+  calories: z
+    .union([z.string().transform((v) => (v === '' ? undefined : Number(v))), z.number().optional()])
+    .refine(
+      (v) => v === undefined || (!Number.isNaN(v) && v > 0 && v <= 5000),
+      'Entre 1 et 5000 kcal'
+    )
+    .optional(),
+  proteinGrams: z
+    .union([z.string().transform((v) => (v === '' ? undefined : Number(v))), z.number().optional()])
+    .refine((v) => v === undefined || (!Number.isNaN(v) && v >= 0 && v <= 500), 'Entre 0 et 500 g')
+    .optional(),
+  carbsGrams: z
+    .union([z.string().transform((v) => (v === '' ? undefined : Number(v))), z.number().optional()])
+    .refine((v) => v === undefined || (!Number.isNaN(v) && v >= 0 && v <= 500), 'Entre 0 et 500 g')
+    .optional(),
+  fatGrams: z
+    .union([z.string().transform((v) => (v === '' ? undefined : Number(v))), z.number().optional()])
+    .refine((v) => v === undefined || (!Number.isNaN(v) && v >= 0 && v <= 500), 'Entre 0 et 500 g')
+    .optional()
+})

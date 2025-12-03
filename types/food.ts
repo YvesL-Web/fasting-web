@@ -62,3 +62,19 @@ export type FoodItem = {
 export type FoodSearchResponse = {
   items: FoodItem[]
 }
+
+// Payload pour créer un aliment custom
+export type CreateFoodItemInput = {
+  label: string
+  brand?: string | null
+  servingSize?: string | null
+  calories?: number | null
+  proteinGrams?: number | null
+  carbsGrams?: number | null
+  fatGrams?: number | null
+}
+
+// Pour GET /foods (mes aliments)
+export type UserFoodsResponse = {
+  items: FoodItem[]
+}

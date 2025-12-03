@@ -18,6 +18,8 @@ import { useState } from 'react'
 import { useFoodSearch } from '@/hooks/food/use-food-search'
 import { FoodItem } from '@/types/food'
 import { ScrollArea } from '../ui/scroll-area'
+import { FoodScanButton } from './food-scan-button'
+import { FoodScanSuggestion } from '@/types/food-scanner'
 
 type Props = {
   today: string
@@ -52,6 +54,13 @@ export function FoodJournalCard({ today, currentFast, timer }: Props) {
     }
     setSearchTerm(item.label)
     setShowResults(false)
+  }
+
+  const handleScanSuggestion = (s: FoodScanSuggestion) => {
+    form.setValue('label', s.label, { shouldValidate: true, shouldDirty: true })
+    if (s.calories != null) {
+      form.setValue('calories', s.calories, { shouldValidate: true, shouldDirty: true })
+    }
   }
 
   const onSubmit = async (values: z.infer<typeof foodEntryFormSchema>) => {
@@ -199,6 +208,9 @@ export function FoodJournalCard({ today, currentFast, timer }: Props) {
               <p className="text-[11px] text-red-400">{form.formState.errors.label.message}</p>
             )}
           </div>
+
+          {/* Scanner IA */}
+          <FoodScanButton onSuggestionClick={handleScanSuggestion} />
 
           <div className="space-y-1.5">
             <Label htmlFor="calories" className="text-xs text-slate-200">
