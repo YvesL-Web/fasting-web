@@ -20,6 +20,7 @@ import { FoodItem } from '@/types/food'
 import { ScrollArea } from '../ui/scroll-area'
 import { FoodScanButton } from './food-scan-button'
 import { FoodScanSuggestion } from '@/types/food-scanner'
+import Link from 'next/link'
 
 type Props = {
   today: string
@@ -269,10 +270,25 @@ export function FoodJournalCard({ today, currentFast, timer }: Props) {
                     className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-950/60 px-3 py-2"
                   >
                     <div className="space-y-1">
-                      <p className="text-xs font-medium text-slate-100">{entry.label}</p>
+                      <p className="text-xs font-medium text-slate-100">
+                        {entry.label}
+                        {entry.recipe && (
+                          <Link
+                            href={`/recipes/${entry.recipe.id}`}
+                            className="ml-2 text-[11px] text-emerald-300 underline underline-offset-2"
+                          >
+                            Voir la recette
+                          </Link>
+                        )}
+                      </p>
                       <p className="text-[11px] text-slate-500">
                         {time}
                         {entry.calories != null && <> • {entry.calories} kcal</>}
+                        {entry.isPostFast && (
+                          <span className="ml-2 rounded-full bg-sky-500/10 px-2 py-0.5 text-[10px] text-sky-300">
+                            Post-jeûne
+                          </span>
+                        )}
                       </p>
                     </div>
                     <span

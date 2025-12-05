@@ -1,16 +1,12 @@
 import { RecipeSummary } from '@/types/recipes'
 import { Badge } from '../ui/badge'
-import { Clock, Edit3, Flame, Globe2, Lock, Trash2 } from 'lucide-react'
-import { Button } from '../ui/button'
-import Link from 'next/link'
+import { Clock, Flame, Globe2, User } from 'lucide-react'
 
-type RecipeCardProps = {
+type PublicRecipeCardProps = {
   recipe: RecipeSummary
-  onDelete: () => void
-  onEdit: () => void
 }
 
-export function RecipeCard({ recipe, onDelete, onEdit }: RecipeCardProps) {
+export function PublicRecipeCard({ recipe }: PublicRecipeCardProps) {
   const totalTime = (recipe.prepTimeMinutes ?? 0) + (recipe.cookTimeMinutes ?? 0)
 
   return (
@@ -27,35 +23,22 @@ export function RecipeCard({ recipe, onDelete, onEdit }: RecipeCardProps) {
       <div className="flex flex-1 flex-col gap-3 p-3">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <Link
-              href={`/recipes/${recipe.id}`}
-              className="line-clamp-1 text-sm font-semibold hover:underline"
-            >
-              {recipe.title}
-            </Link>
+            <h2 className="line-clamp-1 text-sm font-semibold">{recipe.title}</h2>
             <p className="line-clamp-2 text-xs text-slate-500">
               {recipe.description ?? 'Aucune description.'}
             </p>
           </div>
-          <Badge
-            variant={recipe.isPublic ? 'outline' : 'secondary'}
-            className="flex items-center gap-1"
-          >
-            {recipe.isPublic ? (
-              <>
-                <Globe2 className="h-3 w-3" />
-                Public
-              </>
-            ) : (
-              <>
-                <Lock className="h-3 w-3" />
-                Privé
-              </>
-            )}
+          <Badge variant="outline" className="flex items-center gap-1">
+            <Globe2 className="h-3 w-3" />
+            Public
           </Badge>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+          <span className="inline-flex items-center gap-1">
+            <User className="h-3 w-3" />
+            {recipe.author.displayName}
+          </span>
           {totalTime > 0 && (
             <span className="inline-flex items-center gap-1">
               <Clock className="h-3 w-3" />
@@ -68,7 +51,6 @@ export function RecipeCard({ recipe, onDelete, onEdit }: RecipeCardProps) {
               {recipe.totalCalories} kcal
             </span>
           )}
-          {recipe.servings != null && <span>{recipe.servings} portion(s)</span>}
         </div>
 
         {recipe.tags.length > 0 && (
@@ -86,20 +68,6 @@ export function RecipeCard({ recipe, onDelete, onEdit }: RecipeCardProps) {
             )}
           </div>
         )}
-
-        <div className="mt-auto flex justify-end gap-1 pt-1">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onEdit}>
-            <Edit3 className="h-3 w-3" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-red-500 hover:text-red-600"
-            onClick={onDelete}
-          >
-            <Trash2 className="h-3 w-3" />
-          </Button>
-        </div>
       </div>
     </div>
   )

@@ -47,3 +47,11 @@ export function formatShortDurationFromHours(hours: number): string {
   if (m === 0) return `${h} h`
   return `${h} h ${m} min`
 }
+
+export function todayYmd(): string {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}

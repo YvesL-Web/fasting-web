@@ -27,16 +27,7 @@ export default function RecipesPage() {
   }
 
   const handleEditClick = (recipe: RecipeSummary) => {
-    // pour la v1, on réutilise RecipeSummary comme base
-    setEditingRecipe({
-      ...recipe,
-      // on aura les ingredients/steps seulement dans le détail
-      // mais pour la v1, on les laisse vides à l’édition depuis la liste
-      // tu pourras plus tard récupérer le détail avant d’ouvrir le dialog
-      // ici on se concentre sur le flux de création
-      ingredients: [] as unknown as Array<unknown>,
-      steps: [] as unknown as Array<unknown>
-    } as unknown as RecipeSummary)
+    setEditingRecipe(recipe)
     setDialogOpen(true)
   }
 
@@ -78,7 +69,8 @@ export default function RecipesPage() {
       <RecipeFormDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        existing={null /* pour l’instant, v1 = création seulement */}
+        recipeId={editingRecipe?.id ?? null}
+        initialRecipe={editingRecipe ?? undefined}
       />
 
       <Card>

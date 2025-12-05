@@ -7,7 +7,9 @@ export type FoodEntry = {
   fatGrams: number | null
   loggedAt: string
   inEatingWindow: boolean
+  isPostFast: boolean
   fastId: string | null
+  recipe: FoodEntryRecipeRef | null
   createdAt: string
   updatedAt: string
 }
@@ -24,8 +26,7 @@ export type CreateFoodEntryInput = {
   proteinGrams?: number | null
   carbsGrams?: number | null
   fatGrams?: number | null
-  // optionnel côté front, géré côté back (input.loggedAt ?? new Date())
-  loggedAt?: string
+  recipeId?: string | null
 }
 
 export type FoodDaySummary = {
@@ -34,6 +35,15 @@ export type FoodDaySummary = {
   inWindowCalories: number
   outWindowCalories: number
   entriesCount: number
+  postFastCalories: number
+}
+
+export type FoodTopRecipeSummary = {
+  recipeId: string
+  title: string
+  imageUrl: string | null
+  uses: number
+  totalCalories: number
 }
 
 // Réponse de GET /food-entries/summary
@@ -41,6 +51,7 @@ export type FoodSummaryResponse = {
   from: string
   to: string
   days: FoodDaySummary[]
+  topRecipes: FoodTopRecipeSummary[]
 }
 
 // ... tes types existants (FoodEntry, etc.)
@@ -77,4 +88,10 @@ export type CreateFoodItemInput = {
 // Pour GET /foods (mes aliments)
 export type UserFoodsResponse = {
   items: FoodItem[]
+}
+
+export type FoodEntryRecipeRef = {
+  id: string
+  title: string
+  imageUrl: string | null
 }
