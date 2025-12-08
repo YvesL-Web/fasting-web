@@ -17,6 +17,8 @@ const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/nutrition', label: 'Nutrition', icon: CircuitBoard },
   { href: '/foods', label: 'Foods', icon: CircuitBoard },
+  { href: '/recipes', label: 'Recipes', icon: CircuitBoard },
+  { href: '/recipes/explore', label: 'Explore', icon: CircuitBoard },
   { href: '/settings', label: 'Profil & compte', icon: Settings }
 ]
 

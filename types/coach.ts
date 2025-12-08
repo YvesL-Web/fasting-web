@@ -9,6 +9,14 @@ export type FastCoachInput = {
   locale?: 'en' | 'fr' | 'de'
 }
 
-export type FastCoachResponse = {
-  feedback: CoachFeedback
+export type FastCoachGoal = 'weight_loss' | 'energy' | 'health' | 'maintenance'
+
+export type FastCoachFeedbackInput = {
+  mood?: string
+  notes?: string
+  mainGoal?: FastCoachGoal
+}
+
+export type FastCoachFeedbackResponse = {
+  message: string
 }

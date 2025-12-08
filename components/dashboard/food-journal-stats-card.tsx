@@ -6,6 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } fro
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useFoodSummary } from '@/hooks/food/use-food-summary'
 import { formatDateYMD } from '@/lib/time'
+import Image from 'next/image'
 
 export function FoodJournalStatsCard() {
   const today = new Date()

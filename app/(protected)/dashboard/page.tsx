@@ -17,6 +17,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { FoodJournalStatsCard } from '@/components/dashboard/food-journal-stats-card'
 import { FastCoachDialog } from '@/components/dashboard/fast-coach-dialog'
 import { formatDateYMD, formatHMSFromMs, formatShortDurationFromHours } from '@/lib/time'
+import { CoachFeedbackCard } from '@/components/dashboard/coach-feedback-card'
 
 export default function DashboardPage() {
   const { user } = useAuth()
@@ -375,6 +376,9 @@ export default function DashboardPage() {
       </div>
       <div className="grid gap-4 md:grid-cols-1">
         <FoodJournalStatsCard />
+      </div>
+      <div className="grid gap-4 md:grid-cols-1">
+        <CoachFeedbackCard />
       </div>
     </>
   )

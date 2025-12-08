@@ -7,6 +7,7 @@ import { useFoodScan } from '@/hooks/food/use-food-scan'
 import type { FoodScanSuggestion } from '@/types/food-scanner'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { PremiumGuard } from '../premium-guard'
 
 type Props = {
   disabled?: boolean
@@ -49,59 +50,61 @@ export function FoodScanButton({ disabled, onSuggestionClick }: Props) {
   }
 
   return (
-    <div className="space-y-2">
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleFileChange}
-      />
+    <PremiumGuard>
+      <div className="space-y-2">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleFileChange}
+        />
 
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="w-full justify-center gap-2 text-xs"
-        disabled={disabled || isScanning}
-        onClick={handleClick}
-      >
-        <Camera className={cn('h-4 w-4', isScanning && 'animate-pulse')} />
-        {isScanning ? 'Analyse en cours...' : 'Scanner un repas (IA)'}
-      </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="w-full justify-center gap-2 text-xs"
+          disabled={disabled || isScanning}
+          onClick={handleClick}
+        >
+          <Camera className={cn('h-4 w-4', isScanning && 'animate-pulse')} />
+          {isScanning ? 'Analyse en cours...' : 'Scanner un repas (IA)'}
+        </Button>
 
-      {lastResult && lastResult.suggestions.length > 0 && (
-        <div className="rounded-md border border-slate-800 bg-slate-950/70 p-2">
-          <p className="mb-1 text-[11px] font-semibold text-slate-200">
-            Suggestions IA (clique pour remplir) :
-          </p>
-          <ul className="space-y-1">
-            {lastResult.suggestions.map((s, idx) => (
-              <li
-                key={`${s.label}-${idx}`}
-                className={cn(
-                  'cursor-pointer rounded px-2 py-1 text-[11px] hover:bg-slate-900/80',
-                  s.confidence >= 0.7 ? 'text-emerald-200' : 'text-slate-200'
-                )}
-                onClick={() => onSuggestionClick?.(s)}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium">{s.label}</span>
-                  <span className="text-[10px] text-slate-400">
-                    {(s.confidence * 100).toFixed(0)}%
-                  </span>
-                </div>
-                <div className="text-[10px] text-slate-400">
-                  {s.calories != null && <span>{s.calories} kcal</span>}
-                  {s.proteinGrams != null && <span> • Prot {s.proteinGrams} g</span>}
-                  {s.carbsGrams != null && <span> • Gluc {s.carbsGrams} g</span>}
-                  {s.fatGrams != null && <span> • Lip {s.fatGrams} g</span>}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
+        {lastResult && lastResult.suggestions.length > 0 && (
+          <div className="rounded-md border border-slate-800 bg-slate-950/70 p-2">
+            <p className="mb-1 text-[11px] font-semibold text-slate-200">
+              Suggestions IA (clique pour remplir) :
+            </p>
+            <ul className="space-y-1">
+              {lastResult.suggestions.map((s, idx) => (
+                <li
+                  key={`${s.label}-${idx}`}
+                  className={cn(
+                    'cursor-pointer rounded px-2 py-1 text-[11px] hover:bg-slate-900/80',
+                    s.confidence >= 0.7 ? 'text-emerald-200' : 'text-slate-200'
+                  )}
+                  onClick={() => onSuggestionClick?.(s)}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium">{s.label}</span>
+                    <span className="text-[10px] text-slate-400">
+                      {(s.confidence * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-slate-400">
+                    {s.calories != null && <span>{s.calories} kcal</span>}
+                    {s.proteinGrams != null && <span> • Prot {s.proteinGrams} g</span>}
+                    {s.carbsGrams != null && <span> • Gluc {s.carbsGrams} g</span>}
+                    {s.fatGrams != null && <span> • Lip {s.fatGrams} g</span>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </PremiumGuard>
   )
 }

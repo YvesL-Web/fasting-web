@@ -1,10 +1,12 @@
+export type SubscriptionPlan = 'FREE' | 'PREMIUM_MONTHLY' | 'PREMIUM_YEARLY'
+
 export type User = {
   id: string
   email: string
   displayName: string
   locale: 'en' | 'fr' | 'de'
   role: string
-  subscriptionPlan: string
+  subscriptionPlan: SubscriptionPlan
   avatarUrl: string | null
   createdAt: string
   updatedAt: string
