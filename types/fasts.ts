@@ -30,3 +30,10 @@ export type FastingPreset = {
 export type PresetsResponse = {
   presets: FastingPreset[]
 }
+
+export type StartFastInput = {
+  type: string
+  notes?: string | null
+  targetDurationHours?: number | null
+  eatingHours?: number | null
+}

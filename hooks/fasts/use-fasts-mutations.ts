@@ -2,21 +2,23 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { Fast } from '@/types/fasts'
+import { Fast, StartFastInput } from '@/types/fasts'
 import { apiFetch } from '@/lib/api'
 import { toast } from 'sonner'
+import { ApiError } from '@/lib/errors'
 
 export function useStartFast() {
   const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async () =>
+  return useMutation<{ fast: Fast }, ApiError, StartFastInput>({
+    mutationFn: async (input) =>
       apiFetch<{ fast: Fast }>('/fasts/start', {
         method: 'POST',
-        body: { type: '16_8', notes: 'Started from dashboard' }
+        body: input
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['fasts'] })
-      queryClient.invalidateQueries({ queryKey: ['fasts-stats'] })
+      void queryClient.invalidateQueries({ queryKey: ['current-stats'] })
+      void queryClient.invalidateQueries({ queryKey: ['fasts'] })
+      void queryClient.invalidateQueries({ queryKey: ['fasts-stats'] })
     }
   })
 }

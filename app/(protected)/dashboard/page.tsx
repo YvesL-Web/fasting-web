@@ -1,60 +1,109 @@
 'use client'
 
-import { useAuth } from '@/components/auth-provider'
+import { useMemo, useState } from 'react'
+import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { useFastingPresets, useFasts, useFastStats } from '@/hooks/fasts/use-fasts'
-import { useStartFast, useStopFast } from '@/hooks/fasts/use-fasts-mutations'
 import { Progress } from '@/components/ui/progress'
-import { useMemo, useState } from 'react'
-import { Fast, FastingPreset } from '@/types/fasts'
-import { cn } from '@/lib/utils'
-import { useFastTimer } from '@/hooks/fasts/use-fast-timer'
-
-import { FoodJournalCard } from '@/components/dashboard/food-journal-card'
 import { Textarea } from '@/components/ui/textarea'
-import { FoodJournalStatsCard } from '@/components/dashboard/food-journal-stats-card'
+import { useAuth } from '@/components/auth-provider'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { FastCoachDialog } from '@/components/dashboard/fast-coach-dialog'
-import { formatDateYMD, formatHMSFromMs, formatShortDurationFromHours } from '@/lib/time'
+import { FoodJournalCard } from '@/components/dashboard/food-journal-card'
+import { FastPresetSelector } from '@/components/fasts/fast-preset-selector'
 import { CoachFeedbackCard } from '@/components/dashboard/coach-feedback-card'
+import { FoodJournalStatsCard } from '@/components/dashboard/food-journal-stats-card'
+
+import { useFastTimer } from '@/hooks/fasts/use-fast-timer'
+import { useStartFast, useStopFast } from '@/hooks/fasts/use-fasts-mutations'
+import { useFastingPresets, useFasts, useFastStats } from '@/hooks/fasts/use-fasts'
+
+import { cn } from '@/lib/utils'
+import { isApiError } from '@/lib/errors'
+import { formatDateYMD, formatHMSFromMs, formatShortDurationFromHours } from '@/lib/time'
+
+import { Fast, FastingPreset } from '@/types/fasts'
+import { FASTING_PRESETS } from '@/constants/fasting-presets'
 
 export default function DashboardPage() {
-  const { user } = useAuth()
   const today = formatDateYMD(new Date())
+  const { user } = useAuth()
 
   const { data: fastsData, isLoading: isLoadingFasts, isError: isErrorFasts } = useFasts()
   const { data: statsData, isLoading: isLoadingStats, isError: isErrorStats } = useFastStats()
-  const startMutation = useStartFast()
+  const startFastMutation = useStartFast()
   const stopMutation = useStopFast()
   const {
     data: presetsData,
     isLoading: isLoadingPresets,
     isError: isErrorPresets
   } = useFastingPresets()
-
   const presets = presetsData?.presets ?? []
 
-  const defaultPresetId = useMemo(() => {
-    if (!presets.length) return '16_8'
-    const sixteen = presets.find((p) => p.id === '16_8')
-    return sixteen?.id ?? presets[0].id
-  }, [presets])
-
-  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null)
+  const [userPresetId, setUserPresetId] = useState<string | null>(null)
   const [startNotes, setStartNotes] = useState<string>('')
 
-  const effectivePresetId = selectedPresetId ?? defaultPresetId
-
-  const isMutating = startMutation.isPending || stopMutation.isPending
+  const isMutating = startFastMutation.isPending || stopMutation.isPending
 
   const fasts = fastsData?.fasts ?? []
+
   const stats = statsData?.stats
 
   const currentFast = fasts.find((f) => !f.endAt) ?? null
+  const hasActiveFast = !!currentFast && currentFast.endAt === null
   const timer = useFastTimer(currentFast)
+  const lastFast = useMemo(() => (fasts.length > 0 ? fasts[0] : null), [fasts])
 
-  const selectedPreset: FastingPreset | undefined = presets.find((p) => p.id === effectivePresetId)
+  const autoPresetId = useMemo(() => {
+    // priorité 1 : jeûne en cours
+    if (currentFast?.type) return currentFast.type
+    // priorité 2 : dernier jeûne connu
+    if (lastFast?.type) return lastFast.type
+    // sinon on garde le default '16_8
+    return '16_8'
+  }, [currentFast, lastFast])
+
+  // preset effectivement sélectionné = override utilisateur ou auto
+  const selectedPresetId = userPresetId ?? autoPresetId
+
+  const selectedPreset =
+    FASTING_PRESETS.find((p) => p.id === selectedPresetId) ?? FASTING_PRESETS[0]
+
+  const handlePresetChange = (id: string) => {
+    setUserPresetId(id)
+  }
+
+  const handleStartFast = async () => {
+    if (!selectedPreset) return
+    if (hasActiveFast) {
+      toast.error('Jeûne déjà en cours', {
+        description: 'Termine ton jeûne actuel avant d’en démarrer un nouveau.'
+      })
+      return
+    }
+
+    try {
+      await startFastMutation.mutateAsync({
+        type: selectedPreset.id,
+        targetDurationHours: selectedPreset.fastingHours,
+        eatingHours: selectedPreset.eatingHours,
+        notes: `Start ${selectedPreset.label} depuis le dashboard`
+      })
+      toast.success('Jeûne démarré', {
+        description: `Tu as démarré un jeûne ${selectedPreset.label}.`
+      })
+    } catch (err) {
+      if (isApiError(err)) {
+        toast.error('Erreur', {
+          description: err.message ?? 'Impossible de démarrer le jeûne.'
+        })
+      } else {
+        toast.error('Erreur', {
+          description: 'Impossible de démarrer le jeûne.'
+        })
+      }
+    }
+  }
 
   const currentPresetForFast: FastingPreset | undefined =
     currentFast && currentFast.targetDurationHours
@@ -131,28 +180,11 @@ export default function DashboardPage() {
               </p>
             ) : (
               <div className="space-y-2">
-                <p className="text-xs text-slate-400 uppercase">Type de jeûne</p>
-                <div className="flex flex-wrap gap-2">
-                  {presets.map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      className={cn(
-                        'rounded-full border px-3 py-1 text-xs transition-colors',
-                        p.id === effectivePresetId
-                          ? 'border-sky-500 bg-sky-500/10 text-sky-300'
-                          : 'border-slate-700 bg-slate-900/60 text-slate-400 hover:border-slate-500 hover:text-slate-200'
-                      )}
-                      onClick={() => setSelectedPresetId(p.id)}
-                      disabled={!!currentFast} // on ne change pas pendant un jeûne
-                    >
-                      {p.label}{' '}
-                      <span className="text-[10px] text-slate-500">
-                        ({p.fastingHours}h / {p.eatingHours}h)
-                      </span>
-                    </button>
-                  ))}
-                </div>
+                <FastPresetSelector
+                  value={selectedPresetId}
+                  onChange={handlePresetChange}
+                  disabled={hasActiveFast}
+                />
               </div>
             )}
 
@@ -272,10 +304,12 @@ export default function DashboardPage() {
                 <div className="flex justify-end">
                   <Button
                     size="sm"
-                    onClick={() => startMutation.mutate()}
-                    disabled={isMutating || !presets.length}
+                    onClick={handleStartFast}
+                    disabled={startFastMutation.isPending || !presets.length}
                   >
-                    {startMutation.isPending ? 'Démarrage...' : 'Démarrer le jeûne'}
+                    {startFastMutation.isPending
+                      ? 'Démarrage...'
+                      : `Démarrer ${selectedPreset.label}`}
                   </Button>
                 </div>
               </div>
