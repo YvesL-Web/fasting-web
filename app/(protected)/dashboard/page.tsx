@@ -24,6 +24,8 @@ import { formatDateYMD, formatHMSFromMs, formatShortDurationFromHours } from '@/
 
 import { Fast, FastingPreset } from '@/types/fasts'
 import { FASTING_PRESETS } from '@/constants/fasting-presets'
+import { PremiumGuard } from '@/components/premium-guard'
+import { MealPrepIntelligenceCard } from '@/components/dashboard/meal-prep-intelligence-card'
 
 export default function DashboardPage() {
   const today = formatDateYMD(new Date())
@@ -414,6 +416,9 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-1">
         <CoachFeedbackCard />
       </div>
+      <PremiumGuard>
+        <MealPrepIntelligenceCard locale={user?.locale ?? 'en'} />
+      </PremiumGuard>
     </>
   )
 }
