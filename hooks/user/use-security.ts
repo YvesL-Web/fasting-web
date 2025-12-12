@@ -25,17 +25,3 @@ export function useChangePassword() {
     }
   })
 }
-
-export function useLogoutAllSessions() {
-  const { logout } = useAuth()
-
-  return useMutation<void, ApiError, void>({
-    mutationFn: () =>
-      apiFetch<void>('/auth/logout-all', {
-        method: 'POST'
-      }),
-    onSuccess: async () => {
-      await logout()
-    }
-  })
-}

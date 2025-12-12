@@ -1,61 +1,95 @@
+// app/(protected)/settings/page.tsx
 'use client'
 
-import { useRef } from 'react'
+import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
-import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-
-import { useAuth } from '@/components/auth-provider'
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
-import { Button } from '@/components/ui/button'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { z } from 'zod'
+import { useSearchParams } from 'next/navigation'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useUploadAvatar } from '@/hooks/user/use-upload-avatar'
-import { useDeleteAvatar } from '@/hooks/user/use-delete-avatar'
-import { useUpdateProfile } from '@/hooks/user/use-update-profile'
-import { useChangePassword, useLogoutAllSessions } from '@/hooks/user/use-security'
+import { Button } from '@/components/ui/button'
+import { Separator } from '@/components/ui/separator'
+import { Badge } from '@/components/ui/badge'
+import { Loader2, ShieldCheck, Smartphone, Monitor, Globe2, Crown } from 'lucide-react'
 import { toast } from 'sonner'
+
+import { useAuth } from '@/components/auth-provider'
+import { useUploadAvatar } from '@/hooks/user/use-upload-avatar'
+import { useUpdateProfile } from '@/hooks/user/use-update-profile'
+
+import { cn } from '@/lib/utils'
+import { SessionInfo } from '@/types/auth'
+import { useChangePassword } from '@/hooks/user/use-security'
+import { useLogoutAllSessions, useRevokeSession, useSessions } from '@/hooks/session/use-sessions'
 import { isApiError, parseDetails } from '@/lib/errors'
-import { useSessions, useRevokeSession } from '@/hooks/session/use-sessions'
-import { formatRelativeFromNow } from '@/lib/time'
+import {
+  ChangePasswordForm,
+  changePasswordSchema,
+  ProfileForm,
+  profileSchema
+} from '@/schemas/auth.schemas'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
-const profileSchema = z.object({
-  displayName: z.string().min(1, 'Nom requis'),
-  locale: z.enum(['en', 'fr', 'de'])
-})
+// ---------- Helpers ----------
 
-type ProfileForm = z.infer<typeof profileSchema>
+function sessionDeviceLabel(session: SessionInfo) {
+  const ua = (session.userAgent ?? '').toLowerCase()
+  if (!ua) return 'Appareil inconnu'
+  if (ua.includes('iphone') || ua.includes('android')) return 'Mobile'
+  if (ua.includes('macintosh') || ua.includes('windows') || ua.includes('linux')) return 'Desktop'
+  return 'Appareil'
+}
 
-const changePasswordSchema = z
-  .object({
-    currentPassword: z.string().min(8, 'Au moins 8 caractères'),
-    newPassword: z.string().min(8, 'Au moins 8 caractères'),
-    confirmNewPassword: z.string().min(8, 'Au moins 8 caractères')
-  })
-  .refine((data) => data.newPassword === data.confirmNewPassword, {
-    message: 'Les mots de passe ne correspondent pas',
-    path: ['confirmNewPassword']
-  })
+function formatRelativeDate(dateStr: string) {
+  const d = new Date(dateStr)
+  const now = new Date()
+  const diffMs = now.getTime() - d.getTime()
+  const diffHours = diffMs / (1000 * 60 * 60)
+  if (diffHours < 1) return "Il y a moins d'une heure"
+  if (diffHours < 24) return `Il y a ~${Math.round(diffHours)}h`
+  const diffDays = Math.round(diffHours / 24)
+  return `Il y a ${diffDays} jour${diffDays > 1 ? 's' : ''}`
+}
 
-type ChangePasswordForm = z.infer<typeof changePasswordSchema>
+// ---------- Page ----------
 
 export default function SettingsPage() {
-  const { user } = useAuth()
+  const { user, refreshUser, isLoading } = useAuth()
+  const searchParams = useSearchParams()
+  const initialTab = searchParams.get('tab') ?? 'profile'
 
-  const uploadMutation = useUploadAvatar()
-  const deleteMutation = useDeleteAvatar()
+  const uploadAvatarMutation = useUploadAvatar()
   const updateProfileMutation = useUpdateProfile()
   const changePasswordMutation = useChangePassword()
-  const logoutAllMutation = useLogoutAllSessions()
-  const revokeSessionMutation = useRevokeSession()
-  const {
-    data: sessionsData,
-    isLoading: isLoadingSessions,
-    isError: isErrorSessions
-  } = useSessions()
 
-  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const { data: sessionsData, isLoading: isLoadingSessions } = useSessions()
+  const sessions = sessionsData?.sessions ?? []
+
+  const revokeSessionMutation = useRevokeSession()
+  const revokeAllSessionsMutation = useLogoutAllSessions()
+
+  // --- Avatar handlers ---
+  const isUploading = uploadAvatarMutation.isPending
+
+  const profileForm = useForm<ProfileForm>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      displayName: user?.displayName ?? '',
+      locale: user?.locale ?? 'fr'
+    }
+  })
+
+  useEffect(() => {
+    if (user) {
+      profileForm.reset({
+        displayName: user.displayName,
+        locale: user.locale
+      })
+    }
+  }, [user, profileForm])
 
   // --- Change password form ---
   const passwordForm = useForm<ChangePasswordForm>({
@@ -67,80 +101,10 @@ export default function SettingsPage() {
     }
   })
 
-  // --- Profile form ---
-  const profileForm = useForm<ProfileForm>({
-    resolver: zodResolver(profileSchema),
-    defaultValues: {
-      displayName: user?.displayName,
-      locale: user?.locale
-    }
-  })
-
-  if (!user) return null
-
-  const initialLetter = user.displayName?.charAt(0)?.toUpperCase() || 'U'
-  const sessions = sessionsData?.sessions ?? []
-
-  // --- Avatar handlers ---
-  const isUploading = uploadMutation.isPending
-  const isDeleting = deleteMutation.isPending
-
-  const handleSelectFile = () => {
-    fileInputRef.current?.click()
-  }
-
-  const handleFileChange: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    if (!file.type.startsWith('image/')) {
-      toast.success('Fichier invalide', {
-        description: 'Merci de choisir une image.'
-      })
-      e.target.value = ''
-      return
-    }
-
-    try {
-      await uploadMutation.mutateAsync(file)
-      toast('Avatar mis à jour ✅')
-    } catch (err) {
-      if (isApiError(err)) {
-        toast.error('Erreur', {
-          description: err.message
-        })
-      } else {
-        toast('Erreur', {
-          description: 'Impossible de mettre à jour ton avatar.'
-        })
-      }
-    } finally {
-      e.target.value = ''
-    }
-  }
-
-  const handleDeleteAvatar = async () => {
-    try {
-      await deleteMutation.mutateAsync()
-      toast.success('Avatar supprimé', {
-        description: 'Ton avatar a été supprimé.'
-      })
-    } catch (err) {
-      if (isApiError(err)) {
-        toast('Erreur', {
-          description: err.message
-        })
-      } else {
-        toast('Erreur', {
-          description: 'Impossible de supprimer ton avatar.'
-        })
-      }
-    }
-  }
-
-  const onSubmitProfile = async (values: ProfileForm) => {
+  const handleProfileSubmit = async (values: ProfileForm) => {
     try {
       await updateProfileMutation.mutateAsync(values)
+      await refreshUser()
       toast.success('Profil mis à jour ✅')
     } catch (err) {
       if (isApiError(err)) {
@@ -155,7 +119,7 @@ export default function SettingsPage() {
     }
   }
 
-  const onSubmitPassword = async (values: ChangePasswordForm) => {
+  const handlePasswordSubmit = async (values: ChangePasswordForm) => {
     try {
       await changePasswordMutation.mutateAsync({
         currentPassword: values.currentPassword,
@@ -185,309 +149,420 @@ export default function SettingsPage() {
     }
   }
 
-  const handleLogoutAll = async () => {
-    try {
-      await logoutAllMutation.mutateAsync()
-      toast('Déconnecté de tous les appareils', {
-        description: 'Reconnecte-toi pour continuer.'
+  const handleAvatarChange: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Fichier invalide', {
+        description: 'Merci de choisir une image.'
       })
+      e.target.value = ''
+      return
+    }
+
+    try {
+      await uploadAvatarMutation.mutateAsync(file)
+      toast.success('Avatar mis à jour')
     } catch (err) {
       if (isApiError(err)) {
         toast.error('Erreur', {
           description: err.message
         })
       } else {
-        toast('Erreur', {
-          description: 'Impossible de terminer la déconnexion.'
+        toast.error('Erreur', {
+          description: 'Impossible de mettre à jour ton avatar.'
         })
       }
+    } finally {
+      e.target.value = ''
     }
   }
 
-  const isUpdatingProfile = updateProfileMutation.isPending
-  const isChangingPassword = changePasswordMutation.isPending
-  const isLoggingOutAll = logoutAllMutation.isPending
+  if (isLoading && !user) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+      </div>
+    )
+  }
+
+  const initialLetter = user?.displayName?.charAt(0)?.toUpperCase() || 'U'
 
   return (
-    <>
-      {/* header page */}
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-50">Profil & paramètres</h1>
-        <p className="text-sm text-slate-400">
-          Gère ton profil, ta photo et la sécurité de ton compte.
-        </p>
-      </div>
+    <div className="space-y-4">
+      {/* Header */}
+      <section className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-wide text-emerald-400">Paramètres</p>
+          <h1 className="text-lg font-semibold text-slate-50">Ton espace personnel</h1>
+          <p className="text-xs text-slate-400">
+            Gère ton profil, ta sécurité et ton expérience dans l&apos;app.
+          </p>
+        </div>
+        <div className="flex flex-col items-end gap-1 text-right">
+          <span className="text-[11px] uppercase tracking-wide text-slate-500">Plan actuel</span>
+          <span className="flex items-center gap-1 text-xs font-medium text-emerald-300">
+            <Crown className="h-3 w-3 text-amber-400" />
+            {user?.subscriptionPlan ?? 'FREE'}
+          </span>
+        </div>
+      </section>
 
-      <div className="grid gap-6 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-        {/* Colonne gauche : profil rapide + avatar */}
-        <Card className="border-slate-800 bg-slate-900/70">
-          <CardHeader>
-            <CardTitle className="text-sm font-medium text-slate-100">Profil utilisateur</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center gap-4">
-              <Avatar className="h-16 w-16">
-                {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.displayName} />}
-                <AvatarFallback>{initialLetter}</AvatarFallback>
-              </Avatar>
-              <div>
-                <p className="text-sm font-medium text-slate-50">{user.displayName}</p>
-                <p className="text-xs text-slate-400">{user.email}</p>
-                <p className="mt-1 text-xs text-slate-500">Plan : {user.subscriptionPlan}</p>
-              </div>
-            </div>
+      {/* Tabs */}
+      <Tabs defaultValue={initialTab} className="space-y-4">
+        <TabsList className="w-full justify-start gap-2 bg-slate-900/60 p-1">
+          <TabsTrigger value="profile" className="text-xs">
+            Profil
+          </TabsTrigger>
+          <TabsTrigger value="security" className="text-xs">
+            Sécurité
+          </TabsTrigger>
+          <TabsTrigger value="appearance" className="text-xs">
+            Apparence
+          </TabsTrigger>
+          <TabsTrigger value="subscription" className="text-xs">
+            Abonnement
+          </TabsTrigger>
+        </TabsList>
 
-            <div className="space-y-2">
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleSelectFile}
-                  disabled={isUploading || isDeleting}
+        {/* PROFIL */}
+        <TabsContent value="profile" className="space-y-4">
+          <div className="grid gap-6 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+            {/* Picture */}
+            <Card className="border-slate-800 bg-slate-900/70">
+              <CardHeader>
+                <CardTitle className="text-xl font-medium text-slate-100">Picture</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-col gap-6 md:flex-row">
+                  {/* Avatar */}
+                  <div className="flex flex-col items-center gap-3 ">
+                    <div className="flex items-center gap-4">
+                      <Avatar className="h-16 w-16">
+                        {user?.avatarUrl && (
+                          <AvatarImage src={user.avatarUrl} alt={user.displayName} />
+                        )}
+                        <AvatarFallback>{initialLetter}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="text-sm font-medium text-slate-50">{user?.displayName}</p>
+                        <p className="text-xs text-slate-400">{user?.email}</p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          Plan : {user?.subscriptionPlan}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="space-y-2 text-center">
+                      <Button size="default" variant="outline" disabled={isUploading} asChild>
+                        <label className="cursor-pointer">
+                          {isUploading ? 'Upload...' : 'Changer d’avatar'}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleAvatarChange}
+                          />
+                        </label>
+                      </Button>
+                      <p className="text-xs text-slate-500">
+                        PNG/JPG, max ~5MB. Un avatar clair aide à te reconnaître partout.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Form profil */}
+            <Card className="border-slate-800 bg-slate-900/70">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-xl font-medium text-slate-100">
+                  Info
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="">
+                  <form
+                    className="space-y-4"
+                    onSubmit={profileForm.handleSubmit(handleProfileSubmit)}
+                    noValidate
+                  >
+                    <div className="space-y-1.5">
+                      <Label htmlFor="displayName" className="text-xs text-slate-200">
+                        Nom affiché
+                      </Label>
+                      <Input
+                        id="displayName"
+                        className="h-8 text-xs text-slate-200"
+                        {...profileForm.register('displayName')}
+                      />
+                      {profileForm.formState.errors.displayName && (
+                        <p className="text-[11px] text-red-400">
+                          {profileForm.formState.errors.displayName.message}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-slate-200">Langue principale</Label>
+                      <select
+                        className="h-8 w-full rounded-md border border-slate-700 bg-slate-950 px-2 text-xs text-slate-100"
+                        {...profileForm.register('locale')}
+                      >
+                        <option value="fr">Français</option>
+                        <option value="en">English</option>
+                        <option value="de">Deutsch</option>
+                      </select>
+                    </div>
+
+                    <Separator className="bg-slate-800" />
+
+                    <div className="flex justify-end">
+                      <Button type="submit" size="sm" disabled={updateProfileMutation.isPending}>
+                        {updateProfileMutation.isPending ? 'Sauvegarde...' : 'Sauvegarder'}
+                      </Button>
+                    </div>
+                  </form>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* SÉCURITÉ */}
+        <TabsContent value="security" className="space-y-4">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)]">
+            {/* Changement mot de passe */}
+            <Card className="border-slate-800 bg-slate-900/70">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-sm font-medium text-slate-100">
+                  <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                  Mot de passe
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form
+                  className="space-y-3"
+                  onSubmit={passwordForm.handleSubmit(handlePasswordSubmit)}
+                  noValidate
                 >
-                  {isUploading ? 'Upload...' : 'Changer d’avatar'}
-                </Button>
-                {user.avatarUrl && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={handleDeleteAvatar}
-                    disabled={isDeleting || isUploading}
-                  >
-                    {isDeleting ? 'Suppression...' : 'Supprimer'}
-                  </Button>
-                )}
-              </div>
-              <p className="text-xs text-slate-500">
-                PNG, JPG, max 2 Mo. L’image est recadrée automatiquement autour du visage.
-              </p>
-            </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-200">Mot de passe actuel</Label>
+                    <Input
+                      type="password"
+                      className="h-8 text-xs text-slate-200"
+                      {...passwordForm.register('currentPassword')}
+                    />
+                    {passwordForm.formState.errors.currentPassword && (
+                      <p className="text-[11px] text-red-400">
+                        {passwordForm.formState.errors.currentPassword.message}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-200">Nouveau mot de passe</Label>
+                    <Input
+                      type="password"
+                      className="h-8 text-xs text-slate-200"
+                      {...passwordForm.register('newPassword')}
+                    />
+                    {passwordForm.formState.errors.newPassword && (
+                      <p className="text-[11px] text-red-400">
+                        {passwordForm.formState.errors.newPassword.message}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-200">
+                      Confirmation du nouveau mot de passe
+                    </Label>
+                    <Input
+                      type="password"
+                      className="h-8 text-xs text-slate-200"
+                      {...passwordForm.register('confirmNewPassword')}
+                    />
+                    {passwordForm.formState.errors.confirmNewPassword && (
+                      <p className="text-[11px] text-red-400">
+                        {passwordForm.formState.errors.confirmNewPassword.message}
+                      </p>
+                    )}
+                  </div>
 
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleFileChange}
-            />
-          </CardContent>
-        </Card>
+                  <p className="text-[11px] text-slate-500">
+                    Après changement, tu pourras être déconnecté sur certains appareils pour des
+                    raisons de sécurité.
+                  </p>
 
-        {/* Colonne droite : formulaires profil + sécurité */}
-        <div className="space-y-4">
-          {/* Form profil */}
-          <Card className="border-slate-800 bg-slate-900/70">
-            <CardHeader>
-              <CardTitle className="text-sm font-medium text-slate-100">
-                Informations du profil
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form
-                className="space-y-4"
-                onSubmit={profileForm.handleSubmit(onSubmitProfile)}
-                noValidate
-              >
-                <div className="space-y-2">
-                  <Label htmlFor="displayName" className="text-slate-200">
-                    Nom affiché
-                  </Label>
-                  <Input
-                    id="displayName"
-                    {...profileForm.register('displayName')}
-                    className="bg-slate-900/60 border-slate-700 text-slate-50"
-                  />
-                  {profileForm.formState.errors.displayName && (
-                    <p className="text-xs text-red-400">
-                      {profileForm.formState.errors.displayName.message}
-                    </p>
-                  )}
-                </div>
+                  <div className="flex justify-end">
+                    <Button type="submit" size="sm" disabled={changePasswordMutation.isPending}>
+                      {changePasswordMutation.isPending
+                        ? 'Mise à jour...'
+                        : 'Mettre à jour le mot de passe'}
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
 
-                <div className="space-y-2">
-                  <Label htmlFor="locale" className="text-slate-200">
-                    Langue
-                  </Label>
-                  <select
-                    id="locale"
-                    className="w-full rounded-md border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-50"
-                    {...profileForm.register('locale')}
-                  >
-                    <option value="fr">Français</option>
-                    <option value="en">English</option>
-                    <option value="de">Deutsch</option>
-                  </select>
-                  {profileForm.formState.errors.locale && (
-                    <p className="text-xs text-red-400">
-                      {profileForm.formState.errors.locale.message}
-                    </p>
-                  )}
-                </div>
-
-                <Button type="submit" disabled={isUpdatingProfile}>
-                  {isUpdatingProfile ? 'Mise à jour...' : 'Enregistrer les modifications'}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-
-          {/* Form sécurité */}
-          <Card className="border-slate-800 bg-slate-900/70">
-            <CardHeader>
-              <CardTitle className="text-sm font-medium text-slate-100">Sécurité</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <form
-                className="space-y-4"
-                onSubmit={passwordForm.handleSubmit(onSubmitPassword)}
-                noValidate
-              >
-                <div className="space-y-2">
-                  <Label htmlFor="currentPassword" className="text-slate-200">
-                    Mot de passe actuel
-                  </Label>
-                  <Input
-                    id="currentPassword"
-                    type="password"
-                    autoComplete="current-password"
-                    {...passwordForm.register('currentPassword')}
-                    className="bg-slate-900/60 border-slate-700 text-slate-50"
-                  />
-                  {passwordForm.formState.errors.currentPassword && (
-                    <p className="text-xs text-red-400">
-                      {passwordForm.formState.errors.currentPassword.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="newPassword" className="text-slate-200">
-                    Nouveau mot de passe
-                  </Label>
-                  <Input
-                    id="newPassword"
-                    type="password"
-                    autoComplete="new-password"
-                    {...passwordForm.register('newPassword')}
-                    className="bg-slate-900/60 border-slate-700 text-slate-50"
-                  />
-                  {passwordForm.formState.errors.newPassword && (
-                    <p className="text-xs text-red-400">
-                      {passwordForm.formState.errors.newPassword.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="confirmNewPassword" className="text-slate-200">
-                    Confirmer le nouveau mot de passe
-                  </Label>
-                  <Input
-                    id="confirmNewPassword"
-                    type="password"
-                    autoComplete="new-password"
-                    {...passwordForm.register('confirmNewPassword')}
-                    className="bg-slate-900/60 border-slate-700 text-slate-50"
-                  />
-                  {passwordForm.formState.errors.confirmNewPassword && (
-                    <p className="text-xs text-red-400">
-                      {passwordForm.formState.errors.confirmNewPassword.message}
-                    </p>
-                  )}
-                </div>
-
-                <Button type="submit" disabled={isChangingPassword}>
-                  {isChangingPassword ? 'Changement...' : 'Changer le mot de passe'}
-                </Button>
-              </form>
-
-              <div className="border-t border-slate-800 pt-4 mt-2">
-                <p className="text-xs text-slate-400 mb-3">
-                  Tu peux te déconnecter de tous les appareils. Utile si tu penses que ton compte a
-                  pu être utilisé ailleurs.
+            {/* Sessions actives */}
+            <Card className="border-slate-800 bg-slate-900/70">
+              <CardHeader>
+                <CardTitle className="text-sm font-medium text-slate-100">
+                  Sessions actives
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-[11px] text-slate-500">
+                  Gère les appareils connectés à ton compte. Tu peux révoquer une session spécifique
+                  ou tout déconnecter.
                 </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleLogoutAll}
-                  disabled={isLoggingOutAll}
-                >
-                  {isLoggingOutAll ? 'Déconnexion...' : 'Se déconnecter de tous les appareils'}
-                </Button>
-              </div>
-              <div className="border-t border-slate-800 pt-4 mt-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-slate-300 uppercase tracking-wide">
-                    Sessions actives
-                  </p>
-                  {isLoadingSessions && (
-                    <span className="text-[11px] text-slate-500">Chargement...</span>
-                  )}
-                </div>
 
-                {isErrorSessions ? (
-                  <p className="text-xs text-red-400">
-                    Impossible de charger les sessions actives.
-                  </p>
-                ) : sessions.length === 0 ? (
-                  <p className="text-xs text-slate-500">
-                    Aucune autre session active pour le moment.
-                  </p>
+                {isLoadingSessions ? (
+                  <p className="text-xs text-slate-400">Chargement des sessions...</p>
+                ) : !sessions || sessions.length === 0 ? (
+                  <p className="text-xs text-slate-400">Aucune autre session active détectée.</p>
                 ) : (
-                  <ul className="space-y-2">
-                    {sessions.map((s) => {
-                      const label = s.isCurrent ? 'Cet appareil' : 'Autre appareil'
-                      const relative = formatRelativeFromNow(s.createdAt)
-                      const ua = s.userAgent || 'Navigateur inconnu'
-                      const ip = s.ip || 'IP inconnue'
+                  <div className="space-y-2">
+                    {sessions.map((session) => {
+                      const isCurrent = session.isCurrent ?? false
+                      const deviceLabel = sessionDeviceLabel(session)
+                      const ip = session.ip ?? 'IP inconnue'
 
-                      const isRevoking =
-                        revokeSessionMutation.isPending &&
-                        revokeSessionMutation.variables?.id === s.id
+                      const Icon = deviceLabel === 'Mobile' ? Smartphone : Monitor
 
                       return (
-                        <li
-                          key={s.id}
-                          className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-950/60 px-3 py-2"
+                        <div
+                          key={session.id}
+                          className={cn(
+                            'flex items-center justify-between rounded-md border border-slate-800 bg-slate-950/60 px-3 py-2',
+                            isCurrent && 'border-emerald-500/50'
+                          )}
                         >
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-slate-100">
-                              {label}{' '}
-                              <span className="text-[11px] text-slate-400">• {relative}</span>
-                            </p>
-                            <p className="text-[11px] text-slate-500 line-clamp-1">{ua}</p>
-                            <p className="text-[11px] text-slate-500">IP : {ip}</p>
+                          <div className="flex items-center gap-2">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900">
+                              <Icon className="h-4 w-4 text-slate-300" />
+                            </div>
+                            <div className="space-y-0.5">
+                              <p className="text-xs font-medium text-slate-100">
+                                {deviceLabel}
+                                {isCurrent && (
+                                  <span className="ml-2 text-[10px] text-emerald-400">
+                                    (Cet appareil)
+                                  </span>
+                                )}
+                              </p>
+                              <p className="text-[11px] text-slate-500">
+                                {session.userAgent?.slice(0, 60) ?? 'User agent inconnu'}
+                              </p>
+                              <p className="text-[11px] text-slate-500">
+                                IP : {ip} • Créée {formatRelativeDate(session.createdAt)}
+                              </p>
+                            </div>
                           </div>
-                          <div className="ml-4">
+                          {!isCurrent && (
                             <Button
-                              variant={s.isCurrent ? 'outline' : 'destructive'}
-                              size="sm"
-                              disabled={isRevoking}
+                              size="default"
+                              variant="outline"
+                              className="text-[11px]"
+                              disabled={revokeSessionMutation.isPending}
                               onClick={() =>
                                 revokeSessionMutation.mutate({
-                                  id: s.id,
-                                  isCurrent: s.isCurrent
+                                  id: session.id,
+                                  isCurrent: session.isCurrent
                                 })
                               }
                             >
-                              {isRevoking
-                                ? 'Suppression...'
-                                : s.isCurrent
-                                ? 'Se déconnecter ici'
-                                : 'Révoquer'}
+                              Révoquer
                             </Button>
-                          </div>
-                        </li>
+                          )}
+                        </div>
                       )
                     })}
-                  </ul>
+                  </div>
                 )}
-              </div>
+
+                {sessions && sessions.length > 0 && (
+                  <div className="flex justify-end">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-red-500/40 text-xs text-red-300 hover:bg-red-500/10"
+                      disabled={revokeAllSessionsMutation.isPending}
+                      onClick={() =>
+                        revokeAllSessionsMutation.mutate(undefined, {
+                          onSuccess: () => {
+                            toast.success('Toutes les sessions ont été révoquées')
+                          },
+                          onError: (error) => {
+                            toast.error('Erreur', {
+                              description:
+                                error?.message ??
+                                "Impossible de révoquer toutes les sessions pour l'instant."
+                            })
+                          }
+                        })
+                      }
+                    >
+                      Se déconnecter de tous les appareils
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* APPARENCE */}
+        <TabsContent value="appearance" className="space-y-4">
+          <Card className="border-slate-800 bg-slate-900/70">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-sm font-medium text-slate-100">
+                <Globe2 className="h-4 w-4 text-emerald-400" />
+                Apparence & thème
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-xs text-slate-300">
+              <p>
+                Le thème clair/sombre est contrôlé via le bouton de bascule en haut à droite de
+                l&apos;application.
+              </p>
+              <p className="text-slate-400">
+                Plus tard, tu pourras personnaliser davantage ton expérience : couleurs
+                d&apos;accent, fond dynamique, thèmes saisonniers, etc.
+              </p>
             </CardContent>
           </Card>
-        </div>
-      </div>
-    </>
+        </TabsContent>
+
+        {/* ABONNEMENT */}
+        <TabsContent value="subscription" className="space-y-4">
+          <Card className="border-slate-800 bg-slate-900/70">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-sm font-medium text-slate-100">
+                <Crown className="h-4 w-4 text-amber-400" />
+                Abonnement
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-xs text-slate-300">
+              <p>
+                Plan actuel :{' '}
+                <Badge variant="outline" className="border-amber-500/40 text-[11px] text-amber-300">
+                  {user?.subscriptionPlan ?? 'FREE'}
+                </Badge>
+              </p>
+              <p className="text-slate-400">
+                Les fonctionnalités Premium incluront : plans de repas IA avancés, scanner calories
+                via photo, statistiques approfondies et communauté exclusive.
+              </p>
+              <p className="text-slate-500">
+                L&apos;intégration des paiements (Stripe / App Stores) sera branchée plus tard. Pour
+                l&apos;instant, tu peux continuer à utiliser la version alpha librement.
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
   )
 }

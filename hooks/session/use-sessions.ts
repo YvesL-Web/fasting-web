@@ -5,6 +5,7 @@ import { apiFetch } from '@/lib/api'
 import { useAuth } from '@/components/auth-provider'
 import type { SessionInfo } from '@/types/auth'
 import { ApiError } from '@/lib/errors'
+import { toast } from 'sonner'
 
 type SessionsResponse = {
   sessions: SessionInfo[]
@@ -37,6 +38,28 @@ export function useRevokeSession() {
       if (vars.isCurrent) {
         await logout()
       }
+      toast.success('Session révoquée')
+    },
+    onError: (error) => {
+      toast.error('Erreur', {
+        description: error?.message ?? "Impossible de révoquer cette session pour l'instant."
+      })
+    }
+  })
+}
+
+export function useLogoutAllSessions() {
+  const queryClient = useQueryClient()
+  const { logout } = useAuth()
+
+  return useMutation<void, ApiError, void>({
+    mutationFn: () =>
+      apiFetch<void>('/auth/logout-all', {
+        method: 'POST'
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['sessions'] })
+      await logout()
     }
   })
 }

@@ -48,3 +48,23 @@ export const verifyEmailSchema = z.object({
 })
 
 export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(8, 'Au moins 8 caractères'),
+    newPassword: z.string().min(8, 'Au moins 8 caractères'),
+    confirmNewPassword: z.string().min(8, 'Au moins 8 caractères')
+  })
+  .refine((data) => data.newPassword === data.confirmNewPassword, {
+    message: 'Les mots de passe ne correspondent pas',
+    path: ['confirmNewPassword']
+  })
+
+export type ChangePasswordForm = z.infer<typeof changePasswordSchema>
+
+export const profileSchema = z.object({
+  displayName: z.string().min(1, 'Nom requis'),
+  locale: z.enum(['en', 'fr', 'de'])
+})
+
+export type ProfileForm = z.infer<typeof profileSchema>

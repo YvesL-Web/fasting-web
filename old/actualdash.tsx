@@ -33,8 +33,6 @@ import { useFastingPresets, useFasts, useFastStats } from '@/hooks/fasts/use-fas
 import { useStartFast, useStopFast } from '@/hooks/fasts/use-fasts-mutations'
 import { FASTING_PRESETS } from '@/constants/fasting-presets'
 import { formatDateYMD, formatHMSFromMs, formatShortDurationFromHours } from '@/lib/time'
-import { Progress } from '@/components/ui/progress'
-import { CoachFeedbackCard } from '@/components/dashboard/coach-feedback-card'
 
 export default function DashboardPage() {
   const { user } = useAuth()
@@ -43,8 +41,13 @@ export default function DashboardPage() {
 
   // Fasts
   const { data: fastsData, isLoading: isLoadingFasts } = useFasts()
+  // const { data: currentFast, isLoading: isLoadingCurrentFast } = useCurrentFast()
   const { data: statsData, isLoading: isLoadingStats } = useFastStats()
-  const { data: presetsData } = useFastingPresets()
+  const {
+    data: presetsData,
+    isLoading: isLoadingPresets,
+    isError: isErrorPresets
+  } = useFastingPresets()
 
   const fasts = fastsData?.fasts ?? []
   const currentFast = fasts.find((f) => !f.endAt) ?? null
@@ -128,8 +131,18 @@ export default function DashboardPage() {
   }
 
   // Coach IA feedback
+  const {
+    data: coachFeedback,
+    isLoading: isLoadingCoach,
+    refetch: refetchCoach
+  } = useFastCoachFeedback({
+    enabled: !!currentFast
+  })
 
   const presets = presetsData?.presets ?? []
+
+  const activePresetId = currentFast?.type ?? undefined
+
   const currentPresetForFast: FastingPreset | undefined =
     currentFast && currentFast.targetDurationHours
       ? presets.find((p) => p.fastingHours === currentFast.targetDurationHours)
@@ -228,22 +241,19 @@ export default function DashboardPage() {
                         Type de jeûne
                       </p>
                       <p className="text-sm font-semibold text-slate-50">{currentFast.type}</p>
+
                       <Separator className="my-2 bg-slate-800" />
+
                       <p className="text-xs text-slate-400">
                         Durée écoulée:{' '}
                         <span className="font-semibold text-slate-100">{elapsedLabel}</span>
                       </p>
-                      {currentPresetForFast && (
-                        <p className="text-xs text-slate-400">
-                          Objectif:{' '}
-                          <span className="font-semibold text-slate-100">
-                            {currentPresetForFast.label}{' '}
-                            <span className="text-[11px] text-slate-400">
-                              ({currentPresetForFast.fastingHours}h jeûne)
-                            </span>
-                          </span>
-                        </p>
-                      )}
+                      <p className="text-xs text-slate-400">
+                        Objectif:{' '}
+                        <span className="font-semibold text-slate-100">
+                          {currentPresetForFast.fastingHours}
+                        </span>
+                      </p>
                       <p className="text-xs text-slate-400">
                         Phase actuelle:{' '}
                         <span
@@ -261,61 +271,6 @@ export default function DashboardPage() {
                             : 'Hors fenêtres'}
                         </span>
                       </p>
-                      <Separator />
-                      {currentFast && currentFast.targetDurationHours && (
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-[11px] text-slate-400">
-                            <span>Progression</span>
-                            <span>
-                              {timer.fastProgress !== null
-                                ? `${Math.round(timer.fastProgress * 100)} %`
-                                : '–'}
-                            </span>
-                          </div>
-                          {timer.fastProgress !== null && (
-                            <Progress value={timer.fastProgress * 100} className="h-2" />
-                          )}
-                          <p className="text-[11px] text-slate-400">
-                            {timer.fastTargetRemainingHours != null && !timer.isOverFastTarget
-                              ? `Encore ~${fastTargetRemainingLabel} pour atteindre ton objectif.`
-                              : timer.isOverFastTarget
-                              ? 'Tu as dépassé ton objectif de jeûne 🎉 Tu peux stopper quand tu veux.'
-                              : 'Objectif de durée non défini.'}
-                          </p>
-                        </div>
-                      )}
-
-                      {currentFast && (
-                        <div className="space-y-1 text-[11px] text-slate-500">
-                          {currentFast.fastTargetEndAt && (
-                            <p>
-                              Fin de la fenêtre de jeûne prévue :{' '}
-                              {new Date(currentFast.fastTargetEndAt).toLocaleString('fr-FR', {
-                                dateStyle: 'short',
-                                timeStyle: 'short'
-                              })}
-                            </p>
-                          )}
-                          {currentFast.eatingWindowStartAt && currentFast.eatingWindowEndAt && (
-                            <p>
-                              Fenêtre d’alimentation théorique :{' '}
-                              {new Date(currentFast.eatingWindowStartAt).toLocaleTimeString(
-                                'fr-FR',
-                                {
-                                  timeStyle: 'short'
-                                }
-                              )}{' '}
-                              –{' '}
-                              {new Date(currentFast.eatingWindowEndAt).toLocaleTimeString('fr-FR', {
-                                timeStyle: 'short'
-                              })}
-                              {eatingWindowRemainingLabel && timer.phase === 'EATING_WINDOW' && (
-                                <> • reste ~{eatingWindowRemainingLabel}</>
-                              )}
-                            </p>
-                          )}
-                        </div>
-                      )}
                     </div>
                   ) : (
                     <p className="text-xs text-slate-400">
@@ -327,9 +282,9 @@ export default function DashboardPage() {
                 {/* Presets + actions */}
                 <div className="space-y-3">
                   <div className="space-y-1">
-                    {/* <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                       Type de jeûne
-                    </p> */}
+                    </p>
                     <FastPresetSelector
                       value={selectedPresetId}
                       onChange={handlePresetChange}
@@ -445,7 +400,49 @@ export default function DashboardPage() {
         <TabsContent value="ai" className="space-y-4">
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)]">
             {/* Coach IA */}
-            <CoachFeedbackCard />
+            {/* <Card className="border-slate-800 bg-slate-900/70">
+              <CardHeader>
+                <CardTitle className="text-sm font-medium text-slate-100">
+                  Coach de jeûne IA
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {!currentFast ? (
+                  <p className="text-xs text-slate-400">
+                    Lance un jeûne pour que le coach puisse analyser tes progrès récents.
+                  </p>
+                ) : isLoadingCoach ? (
+                  <p className="text-xs text-slate-400">Analyse de ton jeûne en cours...</p>
+                ) : coachFeedback?.message ? (
+                  <>
+                    <div className="rounded-md border border-slate-800 bg-slate-950/60 p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-300">
+                        Analyse personnalisée
+                      </p>
+                      <p className="mt-1 text-xs text-slate-100 whitespace-pre-line">
+                        {coachFeedback.message}
+                      </p>
+                    </div>
+                    <div className="flex justify-end">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          void refetchCoach()
+                        }}
+                      >
+                        Rafraîchir l’analyse
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-xs text-slate-400">
+                    Aucune analyse disponible pour l’instant. Commence un jeûne et ajoute quelques
+                    repas pour voir l’IA réagir à tes habitudes.
+                  </p>
+                )}
+              </CardContent>
+            </Card> */}
 
             {/* Meal Prep Intelligence (Premium) */}
             <PremiumGuard>
