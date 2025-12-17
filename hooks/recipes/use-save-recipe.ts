@@ -19,6 +19,9 @@ export type RecipeFormValues = {
   ingredients?: { name: string; quantity?: string | null }[]
   steps?: { text: string }[]
   imageFile?: File | null
+  proteinGrams?: number | null
+  carbsGrams?: number | null
+  fatGrams?: number | null
 }
 
 function buildFormData(values: RecipeFormValues): FormData {
@@ -31,6 +34,9 @@ function buildFormData(values: RecipeFormValues): FormData {
   if (values.cookTimeMinutes != null) fd.set('cookTimeMinutes', String(values.cookTimeMinutes))
   if (values.servings != null) fd.set('servings', String(values.servings))
   if (values.totalCalories != null) fd.set('totalCalories', String(values.totalCalories))
+  if (values.proteinGrams != null) fd.set('proteinGrams', String(values.proteinGrams))
+  if (values.carbsGrams != null) fd.set('carbsGrams', String(values.carbsGrams))
+  if (values.fatGrams != null) fd.set('fatGrams', String(values.fatGrams))
 
   if (values.tags && values.tags.length > 0) {
     fd.set('tags', values.tags.join(','))

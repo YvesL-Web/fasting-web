@@ -48,7 +48,10 @@ export const recipeFormSchema = z.object({
       })
     )
     .optional(),
-  imageFile: z.any().optional() // géré côté TS plutôt que validation stricte
+  imageFile: z.any().optional(), // géré côté TS plutôt que validation stricte
+  proteinGrams: z.coerce.number().nonnegative().max(500).optional(),
+  carbsGrams: z.coerce.number().nonnegative().max(500).optional(),
+  fatGrams: z.coerce.number().nonnegative().max(500).optional()
 })
 
 export type RecipeFormSchema = z.infer<typeof recipeFormSchema>

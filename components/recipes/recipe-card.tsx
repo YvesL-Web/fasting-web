@@ -8,9 +8,10 @@ type RecipeCardProps = {
   recipe: RecipeSummary
   onDelete: () => void
   onEdit: () => void
+  showActions?: boolean
 }
 
-export function RecipeCard({ recipe, onDelete, onEdit }: RecipeCardProps) {
+export function RecipeCard({ recipe, onDelete, onEdit, showActions = true }: RecipeCardProps) {
   const totalTime = (recipe.prepTimeMinutes ?? 0) + (recipe.cookTimeMinutes ?? 0)
 
   return (
@@ -88,17 +89,21 @@ export function RecipeCard({ recipe, onDelete, onEdit }: RecipeCardProps) {
         )}
 
         <div className="mt-auto flex justify-end gap-1 pt-1">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onEdit}>
-            <Edit3 className="h-3 w-3" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-red-500 hover:text-red-600"
-            onClick={onDelete}
-          >
-            <Trash2 className="h-3 w-3" />
-          </Button>
+          {showActions && (
+            <>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onEdit}>
+                <Edit3 className="h-3 w-3" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-red-500 hover:text-red-600"
+                onClick={onDelete}
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </div>

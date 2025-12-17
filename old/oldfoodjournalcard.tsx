@@ -3,29 +3,27 @@
 import { useForm } from 'react-hook-form'
 import type { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useState } from 'react'
-import Link from 'next/link'
-import { toast } from 'sonner'
-
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
-import { isApiError } from '@/lib/errors'
-
 import { foodEntryFormSchema } from '@/schemas/food.schemas'
-import type { Fast } from '@/types/fasts'
-import type { FoodItem } from '@/types/food'
-import type { FoodScanSuggestion } from '@/types/food-scanner'
-import type { FastTimerState } from '@/hooks/fasts/use-fast-timer'
-
-import { useCreateFoodEntry, useFoodEntries, useUpdateFoodEntry } from '@/hooks/food/use-food'
+import { FastTimerState } from '@/hooks/fasts/use-fast-timer'
+import { Fast } from '@/types/fasts'
+import { useCreateFoodEntry, useFoodEntries } from '@/hooks/food/use-food'
+import { toast } from 'sonner'
+import { isApiError } from '@/lib/errors'
+import { useState } from 'react'
 import { useFoodSearch } from '@/hooks/food/use-food-search'
+import { FoodItem } from '@/types/food'
+import { ScrollArea } from '../ui/scroll-area'
 import { FoodScanButton } from './food-scan-button'
-import { Switch } from '../ui/switch'
+import { FoodScanSuggestion } from '@/types/food-scanner'
+import Link from 'next/link'
+import { useDebouncedValue } from '@/hooks/use-debounced-value'
+import { useRecipeList } from '@/hooks/recipes/use-recipes'
+import { RecipeSummary } from '@/types/recipes'
 
 type Props = {
   today: string
@@ -36,66 +34,90 @@ type Props = {
 export function FoodJournalCard({ today, currentFast, timer }: Props) {
   const { data, isLoading, isError } = useFoodEntries(today)
   const createEntryMutation = useCreateFoodEntry(today)
+
   const entries = data?.entries ?? []
 
   const form = useForm({
     resolver: zodResolver(foodEntryFormSchema),
     defaultValues: {
       label: '',
-      calories: undefined,
-      isPostFast: false
+      calories: undefined
     }
   })
 
+  const labelValue = form.watch('label') ?? ''
+  const debouncedLabel = useDebouncedValue(labelValue, 350)
+  const canSearch = debouncedLabel.trim().length >= 2
+
   const [searchTerm, setSearchTerm] = useState('')
   const [showResults, setShowResults] = useState(false)
-  const [selectedFoodItemId, setSelectedFoodItemId] = useState<string | null>(null)
 
-  const { data: searchData, isLoading: isSearching } = useFoodSearch(searchTerm)
+  const { data: searchData, isLoading: isSearching } = useFoodSearch(
+    canSearch ? debouncedLabel : ''
+  )
+  const { data: recipesData, isLoading: isSearchingRecipes } = useRecipeList({
+    search: debouncedLabel,
+    scope: 'me'
+  })
   const searchResults = searchData?.items ?? []
+
+  // const [isInputFocused, setIsInputFocused] = useState(false)
+  // const showResults = isInputFocused && canSearch
 
   const handleSelectFood = (item: FoodItem) => {
     form.setValue('label', item.label, { shouldValidate: true, shouldDirty: true })
-    if (item.calories != null)
-      form.setValue('calories', item.calories, { shouldValidate: true, shouldDirty: true })
-    setSelectedFoodItemId(item.id)
-    setSearchTerm(item.label)
+    form.setValue('calories', item.calories ?? undefined, {
+      shouldValidate: true,
+      shouldDirty: true
+    })
     setShowResults(false)
   }
 
   const handleScanSuggestion = (s: FoodScanSuggestion) => {
     form.setValue('label', s.label, { shouldValidate: true, shouldDirty: true })
-    if (s.calories != null)
+    if (s.calories != null) {
       form.setValue('calories', s.calories, { shouldValidate: true, shouldDirty: true })
-    // scan -> pas forcément un foodItem existant
-    setSelectedFoodItemId(null)
+    }
+  }
+
+  const handleSelectRecipe = async (r: RecipeSummary) => {
+    try {
+      await createEntryMutation.mutateAsync({
+        recipeId: r.id,
+        loggedAt: new Date().toISOString()
+      })
+      toast.success('Ajouté au journal', { description: `“${r.title}” ajouté.` })
+      setSearchTerm('')
+      setShowResults(false)
+    } catch (err) {
+      toast.error('Erreur', {
+        description: isApiError(err) ? err.message : 'Impossible d’ajouter.'
+      })
+    }
   }
 
   const onSubmit = async (values: z.infer<typeof foodEntryFormSchema>) => {
     try {
       await createEntryMutation.mutateAsync({
         label: values.label,
-        calories: values.calories ?? null,
-        isPostFast: values.isPostFast,
-        foodItemId: selectedFoodItemId
+        calories: values.calories
       })
-
-      form.reset({ label: '', calories: undefined, isPostFast: false })
-      setSearchTerm('')
-      setSelectedFoodItemId(null)
-      setShowResults(false)
-
-      toast.success('Entrée ajoutée', { description: 'Ton repas a été ajouté au journal.' })
+      form.reset({ label: '', calories: undefined })
+      toast.success('Entrée ajoutée', {
+        description: 'Ton repas a été ajouté au journal.'
+      })
     } catch (err) {
-      toast.error('Erreur', {
-        description: isApiError(err)
-          ? err.message ?? "Impossible d'ajouter ce repas."
-          : "Impossible d'ajouter ce repas."
-      })
+      if (isApiError(err)) {
+        toast.error('Erreur', {
+          description: err?.message ?? "Impossible d'ajouter ce repas."
+        })
+      } else {
+        toast.error('Erreur', {
+          description: "Impossible d'ajouter ce repas."
+        })
+      }
     }
   }
-
-  const updateEntry = useUpdateFoodEntry(today)
 
   const phaseMessage =
     timer.phase === 'FASTING_WINDOW'
@@ -132,82 +154,88 @@ export function FoodJournalCard({ today, currentFast, timer }: Props) {
           )}
         </div>
       </CardHeader>
-
       <CardContent className="space-y-4">
+        {/* Message de contexte */}
         <p className="text-xs text-slate-400">{phaseMessage}</p>
 
+        {/* Formulaire */}
         <form
           className="space-y-3 rounded-md border border-slate-800 bg-slate-950/60 p-3"
           onSubmit={form.handleSubmit(onSubmit)}
           noValidate
         >
-          {/* Search FoodItems */}
+          {/* Recherche rapide dans le catalogue d'aliments */}
           <div className="space-y-1.5">
-            <Label htmlFor="food-search" className="text-xs text-slate-200">
-              Rechercher un aliment (optionnel)
+            <Label htmlFor="label" className="text-xs text-slate-200">
+              Aliment
             </Label>
-            <Input
-              id="food-search"
-              placeholder="Ex : pomme, riz, poulet..."
-              className="text-slate-200"
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value)
-                setShowResults(true)
-                setSelectedFoodItemId(null) // reset si l'user retape
-              }}
-              onFocus={() => {
-                if (searchTerm.trim().length >= 2) setShowResults(true)
-              }}
-            />
 
-            {isSearching && (
-              <p className="mt-1 text-[11px] text-slate-400">Recherche d’aliments...</p>
-            )}
+            <div className="relative">
+              <Input
+                id="label"
+                placeholder="Ex : pomme, riz, poulet…"
+                className="text-slate-200"
+                {...form.register('label')}
+                onFocus={() => setShowResults(true)}
+                onBlur={() => {
+                  // petit délai pour permettre le click sur un item
+                  window.setTimeout(() => setShowResults(false), 120)
+                }}
+              />
 
-            {showResults && searchTerm.trim().length >= 2 && (
-              <div className="mt-1 rounded-md border border-slate-800 bg-slate-950/90">
-                {searchResults.length === 0 && !isSearching ? (
-                  <p className="px-3 py-2 text-[11px] text-slate-500">
-                    Aucun aliment trouvé pour &quot;{searchTerm}&quot;.
-                  </p>
-                ) : (
-                  <ScrollArea className="max-h-40">
-                    <ul className="divide-y divide-slate-800">
-                      {searchResults.map((item) => (
-                        <li
-                          key={item.id}
-                          className="cursor-pointer px-3 py-2 text-[11px] hover:bg-slate-900/80"
-                          onClick={() => handleSelectFood(item)}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div>
-                              <p className="font-medium text-slate-100">{item.label}</p>
-                              {item.brand && (
-                                <p className="text-[10px] text-slate-400">{item.brand}</p>
-                              )}
-                              {item.servingSize && (
-                                <p className="text-[10px] text-slate-500">
-                                  Portion : {item.servingSize}
+              {showResults && (
+                <div className="absolute z-20 mt-1 w-full rounded-md border border-slate-800 bg-slate-950/95 shadow">
+                  {isSearching ? (
+                    <p className="px-3 py-2 text-[11px] text-slate-400">Recherche…</p>
+                  ) : searchResults.length === 0 ? (
+                    <p className="px-3 py-2 text-[11px] text-slate-500">
+                      Aucun résultat pour “{debouncedLabel}”.
+                    </p>
+                  ) : (
+                    <ScrollArea className="max-h-44">
+                      <ul className="divide-y divide-slate-800">
+                        {searchResults.map((item) => (
+                          <li
+                            key={item.id}
+                            className="cursor-pointer px-3 py-2 text-[11px] hover:bg-slate-900/80"
+                            onMouseDown={(e) => e.preventDefault()} // évite blur avant click
+                            onClick={() => handleSelectFood(item)}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div>
+                                <p className="font-medium text-slate-100">{item.label}</p>
+                                {(item.brand || item.servingSize) && (
+                                  <p className="text-[10px] text-slate-400">
+                                    {item.brand ? item.brand : null}
+                                    {item.brand && item.servingSize ? ' • ' : null}
+                                    {item.servingSize ? `Portion: ${item.servingSize}` : null}
+                                  </p>
+                                )}
+                              </div>
+                              {item.calories != null && (
+                                <p className="text-[11px] font-semibold text-slate-100">
+                                  {item.calories} kcal
                                 </p>
                               )}
                             </div>
-                            {item.calories != null && (
-                              <p className="text-[11px] font-semibold text-slate-100">
-                                {item.calories} kcal
-                              </p>
-                            )}
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </ScrollArea>
-                )}
-              </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </ScrollArea>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {form.formState.errors.label && (
+              <p className="text-[11px] text-red-400">{form.formState.errors.label.message}</p>
             )}
+
+            <p className="text-[11px] text-slate-500">
+              Astuce : tape 2 lettres pour chercher dans ton catalogue.
+            </p>
           </div>
 
-          {/* label */}
           <div className="space-y-1.5">
             <Label htmlFor="label" className="text-xs text-slate-200">
               Qu&apos;as-tu mangé ?
@@ -223,10 +251,9 @@ export function FoodJournalCard({ today, currentFast, timer }: Props) {
             )}
           </div>
 
-          {/* scan IA */}
+          {/* Scanner IA */}
           <FoodScanButton onSuggestionClick={handleScanSuggestion} />
 
-          {/* calories */}
           <div className="space-y-1.5">
             <Label htmlFor="calories" className="text-xs text-slate-200">
               Calories (optionnel)
@@ -246,21 +273,6 @@ export function FoodJournalCard({ today, currentFast, timer }: Props) {
             )}
           </div>
 
-          {/* ✅ Post-fast checkbox */}
-          <div className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-950/60 px-3 py-2">
-            <div>
-              <p className="text-xs font-medium text-slate-100">Post-jeûne</p>
-              <p className="text-[11px] text-slate-500">
-                Active si ce repas sert à rompre ton jeûne (utile pour stats + coach).
-              </p>
-            </div>
-
-            <Switch
-              checked={!!form.watch('isPostFast')}
-              onCheckedChange={(v) => form.setValue('isPostFast', v, { shouldDirty: true })}
-            />
-          </div>
-
           <div className="flex justify-end">
             <Button type="submit" size="sm" disabled={createEntryMutation.isPending}>
               {createEntryMutation.isPending ? 'Ajout...' : 'Ajouter'}
@@ -268,7 +280,7 @@ export function FoodJournalCard({ today, currentFast, timer }: Props) {
           </div>
         </form>
 
-        {/* Liste */}
+        {/* Liste des entrées */}
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
             Repas du jour
@@ -299,38 +311,27 @@ export function FoodJournalCard({ today, currentFast, timer }: Props) {
                     className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-950/60 px-3 py-2"
                   >
                     <div className="space-y-1">
-                      <p className="text-xs font-medium text-slate-100">{entry.label}</p>
+                      <p className="text-xs font-medium text-slate-100">
+                        {entry.label}
+                        {entry.recipe && (
+                          <Link
+                            href={`/recipes/${entry.recipe.id}`}
+                            className="ml-2 text-[11px] text-emerald-300 underline underline-offset-2"
+                          >
+                            Voir la recette
+                          </Link>
+                        )}
+                      </p>
                       <p className="text-[11px] text-slate-500">
                         {time}
                         {entry.calories != null && <> • {entry.calories} kcal</>}
+                        {entry.isPostFast && (
+                          <span className="ml-2 rounded-full bg-sky-500/10 px-2 py-0.5 text-[10px] text-sky-300">
+                            Post-jeûne
+                          </span>
+                        )}
                       </p>
-
-                      <div className="mt-1 flex items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-7 px-2 text-[11px]"
-                          disabled={updateEntry.isPending}
-                          onClick={() =>
-                            updateEntry
-                              .mutateAsync({
-                                id: entry.id,
-                                input: { isPostFast: !entry.isPostFast }
-                              })
-                              .catch(() => {
-                                toast.error('Erreur', {
-                                  description: 'Impossible de modifier cette entrée.'
-                                })
-                              })
-                          }
-                        >
-                          {entry.isPostFast ? 'Post-jeûne ✅' : 'Marquer Post-jeûne'}
-                        </Button>
-                      </div>
                     </div>
-
-                    {/* badge fenêtre */}
                     <span
                       className={cn(
                         'ml-3 rounded-full border px-2 py-0.5 text-[10px] font-medium',

@@ -5,7 +5,10 @@ export const foodEntryFormSchema = z.object({
   calories: z
     .union([z.coerce.number().int().positive().max(5000), z.literal('')])
     .optional()
-    .transform((v) => (v === '' ? undefined : (v as number)))
+    .transform((v) => (v === '' ? undefined : (v as number))),
+  isPostFast: z.boolean().optional().default(false)
+  // recipeId: z.uuid().nullable().optional(),
+  // foodItemId: z.uuid().nullable().optional()
 })
 
 export type FoodEntryFormValues = z.infer<typeof foodEntryFormSchema>

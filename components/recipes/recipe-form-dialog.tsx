@@ -47,6 +47,9 @@ export function RecipeFormDialog({ open, onOpenChange, recipeId, initialRecipe }
           cookTimeMinutes: initialRecipe.cookTimeMinutes?.toString() ?? '',
           servings: initialRecipe.servings?.toString() ?? '',
           totalCalories: initialRecipe.totalCalories?.toString() ?? '',
+          proteinGrams: initialRecipe?.proteinGrams?.toString() ?? '',
+          carbsGrams: initialRecipe?.carbsGrams?.toString() ?? '',
+          fatGrams: initialRecipe?.fatGrams?.toString() ?? '',
           tags: initialRecipe.tags.join(', '),
           ingredients: [],
           steps: [],
@@ -60,6 +63,9 @@ export function RecipeFormDialog({ open, onOpenChange, recipeId, initialRecipe }
           cookTimeMinutes: '',
           servings: '',
           totalCalories: '',
+          proteinGrams: '',
+          carbsGrams: '',
+          fatGrams: '',
           tags: '',
           ingredients: [],
           steps: [],
@@ -98,6 +104,9 @@ export function RecipeFormDialog({ open, onOpenChange, recipeId, initialRecipe }
       cookTimeMinutes: initialRecipe.cookTimeMinutes?.toString() ?? '',
       servings: initialRecipe.servings?.toString() ?? '',
       totalCalories: initialRecipe.totalCalories?.toString() ?? '',
+      proteinGrams: initialRecipe?.proteinGrams?.toString() ?? '',
+      carbsGrams: initialRecipe?.carbsGrams?.toString() ?? '',
+      fatGrams: initialRecipe?.fatGrams?.toString() ?? '',
       tags: initialRecipe.tags.join(', '),
       ingredients: [],
       steps: [],
@@ -123,6 +132,9 @@ export function RecipeFormDialog({ open, onOpenChange, recipeId, initialRecipe }
       cookTimeMinutes: existing.cookTimeMinutes?.toString() ?? '',
       servings: existing.servings?.toString() ?? '',
       totalCalories: existing.totalCalories?.toString() ?? '',
+      proteinGrams: existing?.proteinGrams?.toString() ?? '',
+      carbsGrams: existing?.carbsGrams?.toString() ?? '',
+      fatGrams: existing?.fatGrams?.toString() ?? '',
       tags: existing.tags.join(', '),
       ingredients:
         existing.ingredients?.map((i) => ({
@@ -148,6 +160,9 @@ export function RecipeFormDialog({ open, onOpenChange, recipeId, initialRecipe }
         cookTimeMinutes: '',
         servings: '',
         totalCalories: '',
+        proteinGrams: '',
+        carbsGrams: '',
+        fatGrams: '',
         tags: '',
         ingredients: [],
         steps: [],
@@ -179,6 +194,9 @@ export function RecipeFormDialog({ open, onOpenChange, recipeId, initialRecipe }
       cookTimeMinutes: values.cookTimeMinutes ?? null,
       servings: values.servings ?? null,
       totalCalories: values.totalCalories ?? null,
+      proteinGrams: values.proteinGrams ?? null,
+      carbsGrams: values.carbsGrams ?? null,
+      fatGrams: values.fatGrams ?? null,
       tags: tagsArray,
       ingredients: values.ingredients?.map((i) => ({
         name: i.name,
@@ -389,6 +407,53 @@ export function RecipeFormDialog({ open, onOpenChange, recipeId, initialRecipe }
                 <p className="text-xs text-slate-500">
                   Séparés par des virgules (ex: petit-dej, léger, post-jeûne)
                 </p>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="space-y-1">
+                <Label htmlFor="proteinGrams">Protéines (g)</Label>
+                <Input
+                  id="proteinGrams"
+                  type="number"
+                  inputMode="numeric"
+                  {...form.register('proteinGrams')}
+                />
+                {form.formState.errors.proteinGrams && (
+                  <p className="text-xs text-red-500">
+                    {form.formState.errors.proteinGrams.message as string}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="carbsGrams">Glucides (g)</Label>
+                <Input
+                  id="carbsGrams"
+                  type="number"
+                  inputMode="numeric"
+                  {...form.register('carbsGrams')}
+                />
+                {form.formState.errors.carbsGrams && (
+                  <p className="text-xs text-red-500">
+                    {form.formState.errors.carbsGrams.message as string}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="fatGrams">Lipides (g)</Label>
+                <Input
+                  id="fatGrams"
+                  type="number"
+                  inputMode="numeric"
+                  {...form.register('fatGrams')}
+                />
+                {form.formState.errors.fatGrams && (
+                  <p className="text-xs text-red-500">
+                    {form.formState.errors.fatGrams.message as string}
+                  </p>
+                )}
               </div>
             </div>
 

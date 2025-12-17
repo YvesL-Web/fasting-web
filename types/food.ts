@@ -7,9 +7,10 @@ export type FoodEntry = {
   fatGrams: number | null
   loggedAt: string
   inEatingWindow: boolean
-  isPostFast: boolean
+  isPostFast?: boolean
   fastId: string | null
   recipe: FoodEntryRecipeRef | null
+  foodItemId: string | null
   createdAt: string
   updatedAt: string
 }
@@ -21,12 +22,15 @@ export type FoodEntriesResponse = {
 
 // Payload pour POST /food-entries
 export type CreateFoodEntryInput = {
-  label: string
+  label?: string
   calories?: number | null
   proteinGrams?: number | null
   carbsGrams?: number | null
   fatGrams?: number | null
+  loggedAt?: string | Date
   recipeId?: string | null
+  foodItemId?: string | null
+  isPostFast?: boolean
 }
 
 export type FoodDaySummary = {
@@ -53,8 +57,6 @@ export type FoodSummaryResponse = {
   days: FoodDaySummary[]
   topRecipes: FoodTopRecipeSummary[]
 }
-
-// ... tes types existants (FoodEntry, etc.)
 
 export type FoodItem = {
   id: string
@@ -94,4 +96,13 @@ export type FoodEntryRecipeRef = {
   id: string
   title: string
   imageUrl: string | null
+}
+
+export type UpdateFoodEntryInput = {
+  label?: string
+  calories?: number | null
+  proteinGrams?: number | null
+  carbsGrams?: number | null
+  fatGrams?: number | null
+  isPostFast?: boolean
 }

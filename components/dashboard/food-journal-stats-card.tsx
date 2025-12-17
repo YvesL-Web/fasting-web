@@ -1,17 +1,25 @@
 'use client'
 
+import Link from 'next/link'
 import { subDays } from 'date-fns'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
 import { useFoodSummary } from '@/hooks/food/use-food-summary'
-import { formatDateYMD } from '@/lib/time'
-import Image from 'next/image'
+
+function formatDateYMD(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
 
 export function FoodJournalStatsCard() {
   const today = new Date()
   const to = formatDateYMD(today)
-  const from = formatDateYMD(subDays(today, 6)) // 7 derniers jours
+  const from = formatDateYMD(subDays(today, 6))
 
   const { data, isLoading, isError } = useFoodSummary({ from, to })
 
@@ -33,7 +41,6 @@ export function FoodJournalStatsCard() {
     days.length === 0
       ? []
       : days.map((d) => ({
-          // on n'affiche que MM-DD pour alléger
           day: d.day.slice(5),
           inWindow: d.inWindowCalories,
           outWindow: d.outWindowCalories,
@@ -47,6 +54,7 @@ export function FoodJournalStatsCard() {
           Statistiques alimentation (7 derniers jours)
         </CardTitle>
       </CardHeader>
+
       <CardContent className="space-y-4">
         {isLoading ? (
           <p className="text-xs text-slate-400">Chargement des statistiques...</p>
@@ -55,16 +63,13 @@ export function FoodJournalStatsCard() {
             Impossible de charger les statistiques alimentaires.
           </p>
         ) : days.length === 0 ? (
-          <p className="text-xs text-slate-400">
-            Aucun repas enregistré sur les 7 derniers jours. Ajoute des entrées dans ton journal
-            pour voir des stats ici.
-          </p>
+          <p className="text-xs text-slate-400">Aucun repas enregistré sur les 7 derniers jours.</p>
         ) : (
           <>
             {/* Résumé */}
             <div className="grid gap-3 sm:grid-cols-4">
               <div className="space-y-1">
-                <p className="text-[11px] uppercase text-slate-500">Total calories</p>
+                <p className="text-[11px] uppercase text-slate-500">Total</p>
                 <p className="text-lg font-semibold text-slate-50">
                   {Math.round(totalCalories)} kcal
                 </p>
@@ -93,21 +98,12 @@ export function FoodJournalStatsCard() {
               </div>
             </div>
 
-            {/* Graphique */}
-            <div className="h-52 w-full">
+            {/* Graph */}
+            <div className="h-56 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
-                  <XAxis
-                    dataKey="day"
-                    tick={{ fontSize: 11, fill: '#94a3b8' }}
-                    axisLine={{ stroke: '#475569' }}
-                    tickLine={{ stroke: '#475569' }}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 11, fill: '#94a3b8' }}
-                    axisLine={{ stroke: '#475569' }}
-                    tickLine={{ stroke: '#475569' }}
-                  />
+                <BarChart data={chartData} stackOffset="none">
+                  <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                  <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: '#020617',
@@ -117,56 +113,72 @@ export function FoodJournalStatsCard() {
                     labelStyle={{ color: '#e2e8f0' }}
                   />
                   <Legend
-                    formatter={(value) => (
-                      <span className="text-[11px] text-slate-300">{value}</span>
-                    )}
+                    formatter={(v) => <span className="text-[11px] text-slate-300">{v}</span>}
                   />
                   <Bar dataKey="inWindow" name="Dans la fenêtre" stackId="a" fill="#22c55e" />
                   <Bar dataKey="outWindow" name="Hors fenêtre" stackId="a" fill="#f97316" />
-                  <Bar dataKey="postFast" name="Post-jeûne" stackId="a" fill="#38bdf8" />
+                  <Bar dataKey="postFast" name="Post-jeûne" stackId="b" fill="#38bdf8" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
 
-            {/* Top recettes */}
-            {topRecipes.length > 0 && (
-              <div className="space-y-2 pt-2">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+            <Separator className="bg-slate-800" />
+
+            {/* Top recipes */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                   Recettes les plus utilisées
                 </p>
+                <Badge variant="secondary" className="text-[11px]">
+                  {topRecipes.length}
+                </Badge>
+              </div>
+
+              {topRecipes.length === 0 ? (
+                <p className="text-xs text-slate-500">
+                  Aucune recette utilisée dans le journal sur cette période.
+                </p>
+              ) : (
                 <ul className="space-y-2">
-                  {topRecipes.map((r) => (
+                  {topRecipes.slice(0, 5).map((r) => (
                     <li
                       key={r.recipeId}
-                      className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-950/60 px-3 py-2"
+                      className="flex items-center justify-between gap-3 rounded-md border border-slate-800 bg-slate-950/60 px-3 py-2"
                     >
-                      <div className="flex items-center gap-2">
-                        {r.imageUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={r.imageUrl}
-                            alt={r.title}
-                            className="h-8 w-8 rounded object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-8 w-8 items-center justify-center rounded bg-slate-800 text-[10px] text-slate-400">
-                            R
-                          </div>
-                        )}
-                        <div>
-                          <p className="text-xs font-medium text-slate-100 line-clamp-1">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 overflow-hidden rounded-md border border-slate-800 bg-slate-900">
+                          {r.imageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={r.imageUrl}
+                              alt={r.title}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : null}
+                        </div>
+
+                        <div className="min-w-0">
+                          <Link
+                            href={`/recipes/${r.recipeId}`}
+                            className="block truncate text-xs font-medium text-slate-100 hover:underline"
+                          >
                             {r.title}
-                          </p>
+                          </Link>
                           <p className="text-[11px] text-slate-500">
-                            {r.uses} utilisation(s) • {Math.round(r.totalCalories)} kcal
+                            {r.uses} fois • {Math.round(r.totalCalories)} kcal cumulées
                           </p>
                         </div>
                       </div>
+
+                      <Badge variant="outline" className="text-[11px]">
+                        Top
+                      </Badge>
                     </li>
                   ))}
                 </ul>
-              </div>
-            )}
+              )}
+            </div>
           </>
         )}
       </CardContent>
