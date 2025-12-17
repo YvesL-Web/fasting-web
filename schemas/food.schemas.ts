@@ -37,3 +37,28 @@ export const foodItemFormSchema = z.object({
     .refine((v) => v === undefined || (!Number.isNaN(v) && v >= 0 && v <= 500), 'Entre 0 et 500 g')
     .optional()
 })
+
+const optionalNumber = (min: number, max: number, label: string) =>
+  z
+    .union([z.coerce.number(), z.literal('')])
+    .optional()
+    .transform((v) => (v === '' || v === undefined ? undefined : (v as number)))
+    .refine((v) => v === undefined || (!Number.isNaN(v) && v >= min && v <= max), {
+      message: `${label} invalide`
+    })
+
+export const foodEntryEditFormSchema = z.object({
+  label: z.string().min(1, 'Décris ce que tu as mangé').max(255),
+
+  calories: optionalNumber(1, 5000, 'Calories'),
+  proteinGrams: optionalNumber(0, 500, 'Protéines'),
+  carbsGrams: optionalNumber(0, 500, 'Glucides'),
+  fatGrams: optionalNumber(0, 500, 'Lipides'),
+
+  // datetime-local => string non vide
+  loggedAtLocal: z.string().min(1, 'Date/heure requise'),
+
+  isPostFast: z.boolean().default(false)
+})
+
+export type FoodEntryEditFormValues = z.infer<typeof foodEntryEditFormSchema>

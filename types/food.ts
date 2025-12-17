@@ -104,5 +104,6 @@ export type UpdateFoodEntryInput = {
   proteinGrams?: number | null
   carbsGrams?: number | null
   fatGrams?: number | null
+  loggedAt?: string
   isPostFast?: boolean
 }

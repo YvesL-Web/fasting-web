@@ -18,7 +18,7 @@ import { FastPresetSelector } from '@/components/fasts/fast-preset-selector'
 import { isApiError } from '@/lib/errors'
 
 // Food
-import { FoodJournalCard } from '@/components/dashboard/food-journal-card'
+
 import { FoodJournalStatsCard } from '@/components/dashboard/food-journal-stats-card'
 
 // IA / Meal prep
@@ -35,6 +35,7 @@ import { FASTING_PRESETS } from '@/constants/fasting-presets'
 import { formatDateYMD, formatHMSFromMs, formatShortDurationFromHours } from '@/lib/time'
 import { Progress } from '@/components/ui/progress'
 import { CoachFeedbackCard } from '@/components/dashboard/coach-feedback-card'
+import { FoodJournalCard } from '@/components/food/food-journal-card'
 
 export default function DashboardPage() {
   const { user } = useAuth()
