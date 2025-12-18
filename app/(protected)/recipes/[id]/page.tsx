@@ -1,3 +1,4 @@
+// app/(protected)/recipes/[id]/page.tsx
 'use client'
 
 import { useMemo, useState } from 'react'
@@ -8,7 +9,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { Switch } from '@/components/ui/switch'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useRecipeDetail } from '@/hooks/recipes/use-recipes'
 import { useCreateFoodEntry } from '@/hooks/food/use-food'
@@ -22,6 +24,20 @@ function formatTodayYMD() {
   return `${y}-${m}-${day}`
 }
 
+function toDatetimeLocal(d: Date) {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const yyyy = d.getFullYear()
+  const mm = pad(d.getMonth() + 1)
+  const dd = pad(d.getDate())
+  const hh = pad(d.getHours())
+  const min = pad(d.getMinutes())
+  return `${yyyy}-${mm}-${dd}T${hh}:${min}`
+}
+
+function fromDatetimeLocal(local: string) {
+  return new Date(local).toISOString()
+}
+
 export default function RecipeDetailPage() {
   const params = useParams<{ id: string }>()
   const router = useRouter()
@@ -33,8 +49,11 @@ export default function RecipeDetailPage() {
   const { data, isLoading, isError } = useRecipeDetail(id, true)
   const recipe = data?.recipe ?? null
 
-  // ✅ user-driven (plutôt que forcé à true)
+  // UX: user-driven toggle
   const [isPostFast, setIsPostFast] = useState(true)
+
+  // UX: allow choose time (optional)
+  const [loggedAtLocal, setLoggedAtLocal] = useState(() => toDatetimeLocal(new Date()))
 
   const handleAddToJournal = async () => {
     if (!recipe) return
@@ -47,7 +66,8 @@ export default function RecipeDetailPage() {
         proteinGrams: recipe.proteinGrams ?? null,
         carbsGrams: recipe.carbsGrams ?? null,
         fatGrams: recipe.fatGrams ?? null,
-        isPostFast
+        isPostFast,
+        loggedAt: fromDatetimeLocal(loggedAtLocal)
       })
 
       toast.success('Ajouté au journal', {
@@ -68,6 +88,24 @@ export default function RecipeDetailPage() {
         <Button variant="ghost" size="sm" onClick={() => router.back()}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Retour
+        </Button>
+
+        <Button
+          onClick={handleAddToJournal}
+          disabled={!recipe || addMutation.isPending}
+          className="hidden sm:inline-flex"
+        >
+          {addMutation.isPending ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Ajout...
+            </>
+          ) : (
+            <>
+              <Plus className="mr-2 h-4 w-4" />
+              Ajouter dans mon journal
+            </>
+          )}
         </Button>
       </div>
 
@@ -183,21 +221,40 @@ export default function RecipeDetailPage() {
 
           <Card className="h-fit">
             <CardHeader>
-              <CardTitle className="text-sm">Action rapide</CardTitle>
+              <CardTitle className="text-sm">Ajouter au journal</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-4">
               <p className="text-sm text-slate-600">
                 Ajoute cette recette à ton journal pour améliorer tes stats et ton coach.
               </p>
 
-              <div className="flex items-center justify-between rounded-md border px-3 py-2">
-                <div className="space-y-0.5">
-                  <Label className="text-xs font-medium">Post-jeûne</Label>
+              <div className="rounded-md border p-3 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={isPostFast}
+                    onCheckedChange={(v) => setIsPostFast(Boolean(v))}
+                  />
+                  <div>
+                    <p className="text-sm font-medium">Post-jeûne</p>
+                    <p className="text-xs text-slate-500">
+                      Coche si ce repas correspond à ta “rupture de jeûne”.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="loggedAt">Date / heure</Label>
+                  <Input
+                    id="loggedAt"
+                    type="datetime-local"
+                    value={loggedAtLocal}
+                    onChange={(e) => setLoggedAtLocal(e.target.value)}
+                  />
                   <p className="text-[11px] text-slate-500">
-                    Active si c’est une rupture de jeûne.
+                    Utile si tu ajoutes la recette après-coup (l’app recalculera fenêtre
+                    jeûne/alimentation).
                   </p>
                 </div>
-                <Switch checked={isPostFast} onCheckedChange={setIsPostFast} />
               </div>
 
               <Button
@@ -205,22 +262,17 @@ export default function RecipeDetailPage() {
                 onClick={handleAddToJournal}
                 disabled={addMutation.isPending}
               >
-                {addMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Ajout...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Ajouter dans mon journal
-                  </>
-                )}
+                {addMutation.isPending ? 'Ajout...' : 'Ajouter dans mon journal'}
               </Button>
 
-              <p className="text-xs text-slate-500">
-                Astuce : tu peux retrouver et modifier l’entrée dans ton journal.
-              </p>
+              <Button
+                variant="outline"
+                className="w-full sm:hidden"
+                onClick={handleAddToJournal}
+                disabled={addMutation.isPending}
+              >
+                {addMutation.isPending ? 'Ajout...' : 'Ajouter'}
+              </Button>
             </CardContent>
           </Card>
         </div>

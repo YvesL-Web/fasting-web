@@ -1,13 +1,11 @@
 'use client'
 
-import Link from 'next/link'
 import { subDays } from 'date-fns'
+import Link from 'next/link'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
 import { useFoodSummary } from '@/hooks/food/use-food-summary'
+import { Flame, TrendingUp } from 'lucide-react'
 
 function formatDateYMD(d: Date): string {
   const y = d.getFullYear()
@@ -29,11 +27,10 @@ export function FoodJournalStatsCard() {
   const totalCalories = days.reduce((sum, d) => sum + d.totalCalories, 0)
   const totalInWindow = days.reduce((sum, d) => sum + d.inWindowCalories, 0)
   const totalOutWindow = days.reduce((sum, d) => sum + d.outWindowCalories, 0)
-  const totalPostFast = days.reduce((sum, d) => sum + d.postFastCalories, 0)
+  const totalPostFast = days.reduce((sum, d) => sum + (d.postFastCalories ?? 0), 0)
 
   const daysCount = days.length || 1
   const avgPerDay = totalCalories / daysCount
-
   const ratioInWindow = totalCalories > 0 ? Math.round((totalInWindow / totalCalories) * 100) : 0
   const ratioPostFast = totalCalories > 0 ? Math.round((totalPostFast / totalCalories) * 100) : 0
 
@@ -44,7 +41,7 @@ export function FoodJournalStatsCard() {
           day: d.day.slice(5),
           inWindow: d.inWindowCalories,
           outWindow: d.outWindowCalories,
-          postFast: d.postFastCalories
+          postFast: d.postFastCalories ?? 0
         }))
 
   return (
@@ -66,7 +63,7 @@ export function FoodJournalStatsCard() {
           <p className="text-xs text-slate-400">Aucun repas enregistré sur les 7 derniers jours.</p>
         ) : (
           <>
-            {/* Résumé */}
+            {/* ✅ Summary */}
             <div className="grid gap-3 sm:grid-cols-4">
               <div className="space-y-1">
                 <p className="text-[11px] uppercase text-slate-500">Total</p>
@@ -79,7 +76,7 @@ export function FoodJournalStatsCard() {
                 <p className="text-lg font-semibold text-slate-50">{Math.round(avgPerDay)} kcal</p>
               </div>
               <div className="space-y-1">
-                <p className="text-[11px] uppercase text-slate-500">Dans la fenêtre</p>
+                <p className="text-[11px] uppercase text-slate-500">Dans fenêtre</p>
                 <p className="text-lg font-semibold text-slate-50">
                   {ratioInWindow}%{' '}
                   <span className="text-[11px] text-slate-400">
@@ -98,56 +95,60 @@ export function FoodJournalStatsCard() {
               </div>
             </div>
 
-            {/* Graph */}
-            <div className="h-56 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} stackOffset="none">
-                  <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#94a3b8' }} />
-                  <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#020617',
-                      borderColor: '#1e293b',
-                      borderRadius: 8
-                    }}
-                    labelStyle={{ color: '#e2e8f0' }}
-                  />
-                  <Legend
-                    formatter={(v) => <span className="text-[11px] text-slate-300">{v}</span>}
-                  />
-                  <Bar dataKey="inWindow" name="Dans la fenêtre" stackId="a" fill="#22c55e" />
-                  <Bar dataKey="outWindow" name="Hors fenêtre" stackId="a" fill="#f97316" />
-                  <Bar dataKey="postFast" name="Post-jeûne" stackId="b" fill="#38bdf8" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            <Separator className="bg-slate-800" />
-
-            {/* Top recipes */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Recettes les plus utilisées
-                </p>
-                <Badge variant="secondary" className="text-[11px]">
-                  {topRecipes.length}
-                </Badge>
+            {/* ✅ Chart + Top recipes */}
+            <div className="grid gap-4 lg:grid-cols-[1.4fr_0.9fr]">
+              <div className="h-56 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} stackOffset="none">
+                    <XAxis
+                      dataKey="day"
+                      tick={{ fontSize: 11, fill: '#94a3b8' }}
+                      axisLine={{ stroke: '#475569' }}
+                      tickLine={{ stroke: '#475569' }}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 11, fill: '#94a3b8' }}
+                      axisLine={{ stroke: '#475569' }}
+                      tickLine={{ stroke: '#475569' }}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#020617',
+                        borderColor: '#1e293b',
+                        borderRadius: 8
+                      }}
+                      labelStyle={{ color: '#e2e8f0' }}
+                    />
+                    <Legend
+                      formatter={(value) => (
+                        <span className="text-[11px] text-slate-300">{value}</span>
+                      )}
+                    />
+                    <Bar dataKey="inWindow" name="Dans fenêtre" stackId="a" fill="#22c55e" />
+                    <Bar dataKey="outWindow" name="Hors fenêtre" stackId="a" fill="#f97316" />
+                    <Bar dataKey="postFast" name="Post-jeûne" stackId="b" fill="#38bdf8" />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
 
-              {topRecipes.length === 0 ? (
-                <p className="text-xs text-slate-500">
-                  Aucune recette utilisée dans le journal sur cette période.
-                </p>
-              ) : (
-                <ul className="space-y-2">
-                  {topRecipes.slice(0, 5).map((r) => (
-                    <li
-                      key={r.recipeId}
-                      className="flex items-center justify-between gap-3 rounded-md border border-slate-800 bg-slate-950/60 px-3 py-2"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 overflow-hidden rounded-md border border-slate-800 bg-slate-900">
+              <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
+                <div className="mb-2 flex items-center gap-2 text-slate-100">
+                  <TrendingUp className="h-4 w-4" />
+                  <p className="text-sm font-semibold">Top recettes</p>
+                </div>
+
+                {topRecipes.length === 0 ? (
+                  <p className="text-xs text-slate-500">
+                    Ajoute des recettes à ton journal pour voir les plus utilisées.
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {topRecipes.slice(0, 5).map((r) => (
+                      <li
+                        key={r.recipeId}
+                        className="flex items-center gap-2 rounded-md border border-slate-800 bg-slate-950/60 p-2"
+                      >
+                        <div className="h-10 w-10 overflow-hidden rounded-md bg-slate-900">
                           {r.imageUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
@@ -157,27 +158,26 @@ export function FoodJournalStatsCard() {
                             />
                           ) : null}
                         </div>
-
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <Link
                             href={`/recipes/${r.recipeId}`}
                             className="block truncate text-xs font-medium text-slate-100 hover:underline"
                           >
                             {r.title}
                           </Link>
-                          <p className="text-[11px] text-slate-500">
-                            {r.uses} fois • {Math.round(r.totalCalories)} kcal cumulées
-                          </p>
+                          <div className="mt-0.5 flex items-center gap-2 text-[11px] text-slate-400">
+                            <span className="inline-flex items-center gap-1">
+                              <Flame className="h-3 w-3" />
+                              {Math.round(r.totalCalories)} kcal
+                            </span>
+                            <span>• {r.uses} fois</span>
+                          </div>
                         </div>
-                      </div>
-
-                      <Badge variant="outline" className="text-[11px]">
-                        Top
-                      </Badge>
-                    </li>
-                  ))}
-                </ul>
-              )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
           </>
         )}
